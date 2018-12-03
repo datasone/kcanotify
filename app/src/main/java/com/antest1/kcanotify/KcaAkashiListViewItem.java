@@ -1,5 +1,7 @@
 package com.antest1.kcanotify;
 
+import android.widget.Toast;
+
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -17,15 +19,16 @@ import static com.antest1.kcanotify.KcaUtils.joinStr;
 
 public class KcaAkashiListViewItem {
     private int equipId;
-    private JsonObject equipImprovmentData;
+    private JsonObject equipImprovementData;
     private int equipIconMipmap;
-    private String equipName;
-    private String equipSupport;
-    private String equipScrews;
+    private String equipName = "";
+    private String equipSupport = "";
+    private String equipMaterials = "";
+    private String equipScrews = "";
 
     public int getEquipId() { return equipId; }
 
-    public JsonObject getEquipImprovmentData() { return equipImprovmentData; }
+    public JsonObject getEquipImprovementData() { return equipImprovementData; }
 
     public int getEquipIconMipmap() {
         return equipIconMipmap;
@@ -39,6 +42,10 @@ public class KcaAkashiListViewItem {
         return equipSupport;
     }
 
+    public String getEquipMaterials() {
+        return equipMaterials;
+    }
+
     public String getEquipScrews() {
         return equipScrews;
     }
@@ -50,7 +57,7 @@ public class KcaAkashiListViewItem {
         int type = kcItemData.getAsJsonArray("type").get(3).getAsInt();
         int typeres = 0;
         try {
-            typeres = getId(String.format("item_%d", type), R.mipmap.class);
+            typeres = getId(KcaUtils.format("item_%d", type), R.mipmap.class);
         } catch (Exception e) {
             typeres = R.mipmap.item_0;
         }
@@ -60,19 +67,24 @@ public class KcaAkashiListViewItem {
         equipName = kcItemName;
     }
 
-    public void setEquipImprovmentData(JsonObject data) {
-        equipImprovmentData = data;
+    public void setEquipImprovementData(JsonObject data) {
+        equipImprovementData = data;
     }
 
     // 0: sun ~ 6: sat
     public void setEquipImprovementElement(int day, boolean checked) {
-        JsonArray data = equipImprovmentData.getAsJsonArray("improvment");
-
+        JsonArray data = equipImprovementData.getAsJsonArray("improvement");
+        boolean convert_exception = equipImprovementData.has("convert_exception");
+        String[] material1 = new String[2];
+        String[] material2 = new String[2];
+        String[] material3 = new String[2];
         String[] screw1 = new String[2];
         String[] screw2 = new String[2];
         String[] screw3 = new String[2];
+
         int count = 0;
         List<String> screw = new ArrayList<String>();
+        List<String> material = new ArrayList<String>();
         List<String> ship = new ArrayList<String>();
 
         for (int i = 0; i < data.size(); i++) {
@@ -83,7 +95,7 @@ public class KcaAkashiListViewItem {
                 if (reqitem.size() == 2 && reqitem.get(0).getAsJsonArray().get(day).getAsBoolean()) {
                     JsonElement supportInfo = reqitem.get(1);
                     if (supportInfo.isJsonArray()) {
-                        int[] filtered = removeKai(supportInfo.getAsJsonArray());
+                        int[] filtered = removeKai(supportInfo.getAsJsonArray(), convert_exception);
                         for(int k = 0; k < filtered.length; k++) {
                             JsonObject kcShipData = getKcShipDataById(filtered[k], "name");
                             shiplist.add(getShipTranslation(kcShipData.get("name").getAsString(), false));
@@ -101,36 +113,60 @@ public class KcaAkashiListViewItem {
                 JsonArray improv2 = resource.get(2).getAsJsonArray();
                 JsonArray improv3 = resource.get(3).getAsJsonArray();
                 if (checked) {
-                    screw1[count] = setScrewString(improv1.get(3).getAsString());
-                    screw2[count] = setScrewString(improv2.get(3).getAsString());
-                    screw3[count] = setScrewString(improv3.get(3).getAsString());
+                    material1[count] = setMaterialScrewString(improv1.get(1).getAsString(), false);
+                    material2[count] = setMaterialScrewString(improv2.get(1).getAsString(), false);
+                    material3[count] = setMaterialScrewString(improv3.get(1).getAsString(), true);
+                    screw1[count] = setMaterialScrewString(improv1.get(3).getAsString(), false);
+                    screw2[count] = setMaterialScrewString(improv2.get(3).getAsString(), false);
+                    screw3[count] = setMaterialScrewString(improv3.get(3).getAsString(), true);
                 } else {
-                    screw1[count] = setScrewString(improv1.get(2).getAsString());
-                    screw2[count] = setScrewString(improv2.get(2).getAsString());
-                    screw3[count] = setScrewString(improv3.get(2).getAsString());
+                    material1[count] = setMaterialScrewString(improv1.get(0).getAsString(), false);
+                    material2[count] = setMaterialScrewString(improv2.get(0).getAsString(), false);
+                    material3[count] = setMaterialScrewString(improv3.get(0).getAsString(), true);
+                    screw1[count] = setMaterialScrewString(improv1.get(2).getAsString(), false);
+                    screw2[count] = setMaterialScrewString(improv2.get(2).getAsString(), false);
+                    screw3[count] = setMaterialScrewString(improv3.get(2).getAsString(), true);
                 }
                 count += 1;
             }
         }
-        if (count == 2) {
-            if (!screw1[0].equals(screw1[1])) screw.add(screw1[0].concat("or").concat(screw1[1]));
-            else screw.add(screw1[0]);
-            if (!screw2[0].equals(screw2[1])) screw.add(screw2[0].concat("or").concat(screw2[1]));
-            else screw.add(screw2[0]);
-            if (!screw3[0].equals(screw3[1])) screw.add(screw3[0].concat("or").concat(screw3[1]));
-            else screw.add(screw3[0]);
+
+        List<String> material_data = new ArrayList<>();
+        List<String> screw_data = new ArrayList<>();
+        if (ship.size() > 1) {
+            for (int i = 0; i < ship.size(); i++) {
+                material_data.clear();
+                screw_data.clear();
+                String text = KcaUtils.format("[%d] %s\n", i+1, ship.get(i));
+                material_data.add(material1[i]);
+                material_data.add(material2[i]);
+                material_data.add(material3[i]);
+                screw_data.add(screw1[i]);
+                screw_data.add(screw2[i]);
+                screw_data.add(screw3[i]);
+                equipSupport = equipSupport.concat(text);
+                equipMaterials = equipMaterials.concat(joinStr(material_data, "/")).concat("\n");
+                equipScrews = equipScrews.concat(joinStr(screw_data, "/")).concat("\n");
+            }
+            equipMaterials = equipMaterials.trim();
+            equipScrews = equipScrews.trim();
+            equipSupport = equipSupport.trim();
         } else {
-            screw.add(screw1[0]);
-            screw.add(screw2[0]);
-            screw.add(screw3[0]);
+            material_data.add(material1[0]);
+            material_data.add(material2[0]);
+            material_data.add(material3[0]);
+            screw_data.add(screw1[0]);
+            screw_data.add(screw2[0]);
+            screw_data.add(screw3[0]);
+            equipSupport = ship.get(0);
+            equipMaterials = equipMaterials.concat(joinStr(material_data, "/"));
+            equipScrews = equipScrews.concat(joinStr(screw_data, "/"));
         }
-        equipSupport = joinStr(ship, " or ");
-        equipScrews = joinStr(screw, "/");
     }
 
-    private String setScrewString(String s) {
+    private String setMaterialScrewString(String s, boolean ignore) {
         if (Integer.parseInt(s) == -1) return "?";
-        else if (Integer.parseInt(s) == 0) return "-";
+        else if (ignore && Integer.parseInt(s) == 0) return "x";
         else return s;
     }
 

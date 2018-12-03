@@ -2,9 +2,7 @@ package com.antest1.kcanotify;
 
 import android.content.Context;
 import android.content.Intent;
-import android.os.Bundle;
 import android.os.Handler;
-import android.os.Message;
 import android.support.v4.content.ContextCompat;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -15,10 +13,10 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-import java.util.ArrayList;
-import java.util.Arrays;
+import org.w3c.dom.Text;
 
-import static com.antest1.kcanotify.KcaConstants.KCA_API_NOTI_HEAVY_DMG;
+import java.util.ArrayList;
+
 import static com.antest1.kcanotify.KcaConstants.PREF_AKASHI_STARLIST;
 import static com.antest1.kcanotify.KcaUtils.getStringPreferences;
 import static com.antest1.kcanotify.KcaUtils.setPreferences;
@@ -57,11 +55,12 @@ public class KcaAkashiListViewAdpater extends BaseAdapter {
         String starlistData = getStringPreferences(context, PREF_AKASHI_STARLIST);
         if (v == null) {
             LayoutInflater inflater = (LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-            v = inflater.inflate(R.layout.listview_equip_item, parent, false);
+            v = inflater.inflate(R.layout.listview_akashi_equip_item, parent, false);
             ViewHolder holder = new ViewHolder();
             holder.itemView = (LinearLayout) v.findViewById(R.id.akashi_improv_item_area);
             holder.iconView = (ImageView) v.findViewById(R.id.akashi_improv_icon);
             holder.nameView = (TextView) v.findViewById(R.id.akashi_improv_name);
+            holder.materialView = (TextView) v.findViewById(R.id.akashi_improv_material);
             holder.screwView = (TextView) v.findViewById(R.id.akashi_improv_screws);
             holder.supportView = (TextView) v.findViewById(R.id.akashi_improv_support);
             holder.starView = (TextView) v.findViewById(R.id.akashi_improv_star);
@@ -70,13 +69,15 @@ public class KcaAkashiListViewAdpater extends BaseAdapter {
 
         KcaAkashiListViewItem item = listViewItemList.get(position);
         final int itemId = item.getEquipId();
-        final String itemImprovmentData = item.getEquipImprovmentData().toString();
+        final String itemImprovementData = item.getEquipImprovementData().toString();
 
         ViewHolder holder = (ViewHolder) v.getTag();
         holder.iconView.setImageResource(item.getEquipIconMipmap());
         holder.nameView.setText(item.getEquipName());
+        holder.materialView.setText(item.getEquipMaterials());
         holder.screwView.setText(item.getEquipScrews());
         holder.supportView.setText(item.getEquipSupport());
+        holder.materialView.setTextColor(ContextCompat.getColor(context, getMaterialTextColor(isSafeChecked)));
         holder.screwView.setTextColor(ContextCompat.getColor(context, getScrewTextColor(isSafeChecked)));
         if (checkStarred(starlistData, itemId)) {
             holder.starView.setText(context.getString(R.string.aa_btn_star1));
@@ -89,7 +90,7 @@ public class KcaAkashiListViewAdpater extends BaseAdapter {
             public void onClick(View v) {
                 Intent intent = new Intent(context, AkashiDetailActivity.class);
                 intent.putExtra("item_id", itemId);
-                intent.putExtra("item_info", itemImprovmentData);
+                intent.putExtra("item_info", itemImprovementData);
                 context.startActivity(intent);
             }
         });
@@ -120,6 +121,7 @@ public class KcaAkashiListViewAdpater extends BaseAdapter {
         LinearLayout itemView;
         ImageView iconView;
         TextView nameView;
+        TextView materialView;
         TextView screwView;
         TextView supportView;
         TextView starView;
@@ -138,8 +140,13 @@ public class KcaAkashiListViewAdpater extends BaseAdapter {
         else return R.color.colorAkashiNormalScrew;
     }
 
+    private int getMaterialTextColor(boolean checked) {
+        if (checked) return R.color.colorAkashiGtdMaterial;
+        else return R.color.colorAkashiNormalMaterial;
+    }
+
     private boolean checkStarred(String data, int id) {
-        return data.contains(String.format("|%d|", id));
+        return data.contains(KcaUtils.format("|%d|", id));
     }
 
     private String addStarred(String data, int id) {
@@ -147,6 +154,6 @@ public class KcaAkashiListViewAdpater extends BaseAdapter {
     }
 
     private String deleteStarred(String data, int id) {
-        return data.replace(String.format("|%d|", id), "|");
+        return data.replace(KcaUtils.format("|%d|", id), "|");
     }
 }

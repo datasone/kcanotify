@@ -1,24 +1,24 @@
 package com.antest1.kcanotify;
 
+import android.app.AlarmManager;
 import android.app.Notification;
-import android.app.Notification.Builder;
-import android.app.Notification.BigTextStyle;
+import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.content.res.AssetManager;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
-import android.graphics.drawable.BitmapDrawable;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.net.Uri;
-import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
@@ -26,91 +26,147 @@ import android.os.Message;
 import android.os.Vibrator;
 import android.preference.PreferenceManager;
 import android.provider.Settings;
+import android.support.v4.app.NotificationCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 import android.widget.Toast;
 
-import com.androidquery.AQuery;
-import com.androidquery.callback.AbstractAjaxCallback;
-import com.androidquery.callback.AjaxCallback;
-import com.androidquery.callback.AjaxStatus;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSyntaxException;
 
-import org.apache.http.HttpEntity;
-import org.apache.http.entity.ByteArrayEntity;
-
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.UnsupportedEncodingException;
 import java.lang.ref.WeakReference;
 import java.net.URLDecoder;
-import java.net.URLEncoder;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
-import okhttp3.MediaType;
-import okhttp3.OkHttpClient;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
+import static android.support.v4.app.NotificationManagerCompat.IMPORTANCE_DEFAULT;
+import static android.support.v4.app.NotificationManagerCompat.IMPORTANCE_HIGH;
+import static android.widget.Toast.makeText;
+import static com.antest1.kcanotify.KcaAlarmService.DELETE_ACTION;
+import static com.antest1.kcanotify.KcaApiData.AKASHI_TIMER_20MIN;
+import static com.antest1.kcanotify.KcaApiData.T2_DRUM_CAN;
+import static com.antest1.kcanotify.KcaApiData.T2_FIGHTER;
+import static com.antest1.kcanotify.KcaApiData.T2_GUN_LARGE;
+import static com.antest1.kcanotify.KcaApiData.T2_GUN_LARGE_II;
+import static com.antest1.kcanotify.KcaApiData.T2_GUN_MEDIUM;
+import static com.antest1.kcanotify.KcaApiData.T2_GUN_SMALL;
+import static com.antest1.kcanotify.KcaApiData.T2_MACHINE_GUN;
+import static com.antest1.kcanotify.KcaApiData.T2_RADAR_LARGE;
+import static com.antest1.kcanotify.KcaApiData.T2_RADAR_SMALL;
+import static com.antest1.kcanotify.KcaApiData.T2_RADER_LARGE_II;
+import static com.antest1.kcanotify.KcaApiData.T2_SEA_SCOUT;
+import static com.antest1.kcanotify.KcaApiData.T2_SUB_GUN;
+import static com.antest1.kcanotify.KcaApiData.T2_TORPEDO;
 import static com.antest1.kcanotify.KcaApiData.checkDataLoadTriggered;
+import static com.antest1.kcanotify.KcaApiData.getAdmiralLevel;
 import static com.antest1.kcanotify.KcaApiData.getNodeColor;
-import static com.antest1.kcanotify.KcaApiData.getShipTranslation;
-import static com.antest1.kcanotify.KcaApiData.isUserItemDataLoaded;
-import static com.antest1.kcanotify.KcaApiData.loadMapEdgeInfoFromAssets;
-import static com.antest1.kcanotify.KcaApiData.loadShipInitEquipCountFromAssets;
-import static com.antest1.kcanotify.KcaApiData.loadSimpleExpeditionInfoFromAssets;
+import static com.antest1.kcanotify.KcaApiData.getReturnFlag;
+import static com.antest1.kcanotify.KcaApiData.getUserItemStatusById;
+import static com.antest1.kcanotify.KcaApiData.isGameDataLoaded;
+import static com.antest1.kcanotify.KcaApiData.loadMapEdgeInfoFromStorage;
+import static com.antest1.kcanotify.KcaApiData.loadQuestTrackDataFromStorage;
+import static com.antest1.kcanotify.KcaApiData.loadShipExpInfoFromAssets;
+import static com.antest1.kcanotify.KcaApiData.loadShipInitEquipCountFromStorage;
+import static com.antest1.kcanotify.KcaApiData.loadSimpleExpeditionInfoFromStorage;
 import static com.antest1.kcanotify.KcaApiData.loadTranslationData;
 import static com.antest1.kcanotify.KcaApiData.updateUserShip;
 import static com.antest1.kcanotify.KcaConstants.*;
-
-import static com.antest1.kcanotify.KcaApiData.isGameDataLoaded;
-import static com.antest1.kcanotify.KcaUtils.*;
+import static com.antest1.kcanotify.KcaFleetViewService.REFRESH_FLEETVIEW_ACTION;
+import static com.antest1.kcanotify.KcaMoraleInfo.setMoraleValue;
+import static com.antest1.kcanotify.KcaQuestViewService.REFRESH_QUESTVIEW_ACTION;
+import static com.antest1.kcanotify.KcaTimerWidget.WIDGET_DATA_UPDATE;
+import static com.antest1.kcanotify.KcaUtils.createBuilder;
+import static com.antest1.kcanotify.KcaUtils.doVibrate;
+import static com.antest1.kcanotify.KcaUtils.getBooleanPreferences;
+import static com.antest1.kcanotify.KcaUtils.getContextWithLocale;
+import static com.antest1.kcanotify.KcaUtils.getId;
+import static com.antest1.kcanotify.KcaUtils.getNotificationId;
+import static com.antest1.kcanotify.KcaUtils.getStringFromException;
+import static com.antest1.kcanotify.KcaUtils.getStringPreferences;
+import static com.antest1.kcanotify.KcaUtils.joinStr;
+import static com.antest1.kcanotify.KcaUtils.setPreferences;
+import static com.antest1.kcanotify.KcaUtils.showDataLoadErrorToast;
+import static com.antest1.kcanotify.KcaViewButtonService.REMOVE_FAIRY_ACTION;
+import static com.antest1.kcanotify.KcaViewButtonService.RETURN_FAIRY_ACTION;
 
 public class KcaService extends Service {
+    public static final String SERVICE_CHANNEL_ID = "kcaservice_noti_channel_";
+    public static final String SERVICE_CHANNEL_ID_OLD = "noti_service_channel";
+    public static final String SERVICE_CHANNEL_NAME = "Kcanotify Service";
+
     public static String currentLocale;
     public static boolean isInitState;
+    public static boolean isFirstState;
+    public static boolean isPassiveMode = false;
+    public static boolean restartFlag = false;
 
     public static boolean isServiceOn = false;
     public static boolean isPortAccessed = false;
+    public static boolean isAkashiTimerNotiWait = true;
     public static int heavyDamagedMode = 0;
+
     public static int checkKdockId = -1;
+    public static int checkLargeFlag = -1;
+    public static int checkHighSpeed = -1;
+
     public static boolean kaisouProcessFlag = false;
     public static String currentNodeInfo = "";
     public static boolean isInBattle;
     public static boolean isCombined;
 
     Context contextWithLocale;
+    KcaDBHelper dbHelper;
+    KcaQuestTracker questTracker;
+    KcaDropLogger dropLogger;
+    KcaResourceLogger resourceLogger;
+    KcaPacketLogger packetLogger;
 
+    KcaDeckInfo deckInfoCalc;
+    KcaQSyncAPI kcaQSyncEndpoint;
+
+    AlarmManager alarmManager;
     AudioManager mAudioManager;
     Vibrator vibrator = null;
     MediaPlayer mediaPlayer;
     NotificationManager notifiManager;
-    Builder viewNotificationBuilder;
-    BigTextStyle viewNotificationText;
+
     public static boolean noti_vibr_on = true;
-    int viewBitmapId, viewBitmapSmallId;
-    Bitmap viewBitmap, expBitmap, dockBitmap = null;
+    // int viewBitmapId, viewBitmapSmallId;
+    // Bitmap viewBitmap = null;
+    Runnable timer;
+    int notificationTimeCounter;
+
+    private String notifyTitle = "";
+    private String notifyContent = "";
+    private boolean notifyFirstTime = true;
+    private NotificationCompat.Builder notifyBuilder;
 
     kcaServiceHandler handler;
     kcaNotificationHandler nHandler;
     LocalBroadcastManager broadcaster;
-
-    Thread[] kcaExpeditionList = new Thread[3];
-    KcaExpedition[] kcaExpeditionRunnableList = new KcaExpedition[3];
-    String[] kcaExpeditionInfoList = new String[3];
-
-    Thread[] kcaDockingList = new Thread[4];
-    KcaDocking[] kcaDockingRunnableList = new KcaDocking[4];
+    ScheduledExecutorService timeScheduler = null;
+    private BroadcastReceiver receiver;
 
     String kcaFirstDeckInfo;
     static String kca_version;
@@ -118,11 +174,14 @@ public class KcaService extends Service {
     boolean api_start2_down_mode = false;
     boolean api_start2_init = false;
     boolean api_start2_loading_flag = false;
-    public JsonArray currentPortDeckData = null;
-    Gson gson = new Gson();
+    Gson gson = new GsonBuilder().setLenient().create();
 
     public static boolean getServiceStatus() {
         return isServiceOn;
+    }
+
+    public Handler getNofiticationHandler() {
+        return nHandler;
     }
 
     private boolean checkKeyInPreferences(String key) {
@@ -130,8 +189,44 @@ public class KcaService extends Service {
         return pref.contains(key);
     }
 
+    private void createServiceChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            int priority = IMPORTANCE_DEFAULT;
+            if (getBooleanPreferences(getApplicationContext(), PREF_KCA_SET_PRIORITY)) {
+                priority = IMPORTANCE_HIGH;
+            }
+            NotificationChannel channel = new NotificationChannel(getServiceChannelId(),
+                    SERVICE_CHANNEL_NAME, priority);
+            channel.enableVibration(false);
+            channel.setSound(null, null);
+            channel.setLockscreenVisibility(Notification.VISIBILITY_PRIVATE);
+            notifiManager.deleteNotificationChannel(SERVICE_CHANNEL_ID_OLD);
+            notifiManager.createNotificationChannel(channel);
+        }
+    }
+
+    private String getServiceChannelId() {
+        boolean priority = getBooleanPreferences(getApplicationContext(), PREF_KCA_SET_PRIORITY);
+        return SERVICE_CHANNEL_ID.concat(String.valueOf(priority));
+    }
+
     public String getStringWithLocale(int id) {
         return KcaUtils.getStringWithLocale(getApplicationContext(), getBaseContext(), id);
+    }
+
+    void runTimer() {
+        if (timeScheduler == null || timeScheduler.isShutdown()) {
+            if (isMissionTimerViewEnabled() || isAkashiTimerNotiEnabled()) {
+                timeScheduler = Executors.newSingleThreadScheduledExecutor();
+                timeScheduler.scheduleAtFixedRate(timer, 0, 1, TimeUnit.SECONDS);
+            }
+        }
+    }
+
+    void stopTimer() {
+        if (timeScheduler != null) {
+            timeScheduler.shutdown();
+        }
     }
 
     @Override
@@ -141,29 +236,43 @@ public class KcaService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        Log.e("KCA-S", "onStartCommand Called");
+        isServiceOn = true;
         isInitState = true;
+        isFirstState = true;
+        restartFlag = true;
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-        Log.e("KCA", String.valueOf(prefs.contains(PREF_SVC_ENABLED)));
-        if (!prefs.getBoolean(PREF_SVC_ENABLED, false)) {
-            stopSelf();
-        }
-        contextWithLocale = getContextWithLocale(getApplicationContext(), getBaseContext());
+        prefs.edit().putBoolean(PREF_SVC_ENABLED, true).apply();
 
-        for (int i = 0; i < 3; i++) {
-            kcaExpeditionList[i] = null;
-            kcaExpeditionInfoList[i] = "";
-        }
+        contextWithLocale = getContextWithLocale(getApplicationContext(), getBaseContext());
+        dbHelper = new KcaDBHelper(getApplicationContext(), null, KCANOTIFY_DB_VERSION);
+        questTracker = new KcaQuestTracker(getApplicationContext(), null, KCANOTIFY_QTDB_VERSION);
+        dropLogger = new KcaDropLogger(getApplicationContext(), null, KCANOTIFY_DROPLOG_VERSION);
+        resourceLogger = new KcaResourceLogger(getApplicationContext(), null, KCANOTIFY_RESOURCELOG_VERSION);
+        packetLogger = new KcaPacketLogger(getApplicationContext(), null, KCANOTIFY_PACKETLOG_VERSION);
+        deckInfoCalc = new KcaDeckInfo(getApplicationContext(), getBaseContext());
+        kcaQSyncEndpoint = KcaUtils.getQuestSync(getApplicationContext());
+        KcaApiData.setDBHelper(dbHelper);
 
         AssetManager assetManager = getResources().getAssets();
-        int loadMapEdgeInfoResult = loadMapEdgeInfoFromAssets(assetManager);
+        int loadMapEdgeInfoResult = loadMapEdgeInfoFromStorage(getApplicationContext());
         if (loadMapEdgeInfoResult != 1) {
             Toast.makeText(this, "Error loading Map Edge Info", Toast.LENGTH_LONG).show();
         }
 
-        loadSimpleExpeditionInfoFromAssets(assetManager);
-        KcaExpedition.expeditionData = KcaApiData.kcSimpleExpeditionData;
+        int loadExpShipInfoResult = loadShipExpInfoFromAssets(assetManager);
+        if (loadExpShipInfoResult != 1) {
+            Toast.makeText(this, "Error loading Exp Ship Info", Toast.LENGTH_LONG).show();
+        }
 
-        loadShipInitEquipCountFromAssets(assetManager);
+        loadSimpleExpeditionInfoFromStorage(getApplicationContext());
+        loadShipInitEquipCountFromStorage(getApplicationContext());
+        loadQuestTrackDataFromStorage(dbHelper, getApplicationContext());
+        dbHelper.initQuestCheck();
+        dbHelper.initExpScore();
+        QSyncRead();
+
+        showDataLoadErrorToast(getApplicationContext(), getBaseContext(), getStringWithLocale(R.string.download_check_error));
 
         mediaPlayer = new MediaPlayer();
         mediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
@@ -173,84 +282,123 @@ public class KcaService extends Service {
                 mp.reset();
             }
         });
-
-        mAudioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-        notifiManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
 
-        String fairyId = "noti_icon_".concat(getStringPreferences(getApplicationContext(), PREF_FAIRY_ICON));
-        viewBitmapId = getId(fairyId, R.mipmap.class);
-        viewBitmapSmallId = getId(fairyId.concat("_small"), R.mipmap.class);
-        viewBitmap = ((BitmapDrawable) ContextCompat.getDrawable(this, viewBitmapId)).getBitmap();
-        expBitmap = ((BitmapDrawable) ContextCompat.getDrawable(this, R.mipmap.expedition_notify_bigicon)).getBitmap();
-        dockBitmap = ((BitmapDrawable) ContextCompat.getDrawable(this, R.mipmap.docking_notify_bigicon)).getBitmap();
+        alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+        mAudioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+        notifiManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        createServiceChannel();
 
         handler = new kcaServiceHandler(this);
         nHandler = new kcaNotificationHandler(this);
         broadcaster = LocalBroadcastManager.getInstance(this);
 
-        kcaExpeditionRunnableList = new KcaExpedition[3];
-        kcaDockingRunnableList = new KcaDocking[4];
-
-        AbstractAjaxCallback.setGZip(true);
-
-        String initTitle = String.format(getStringWithLocale(R.string.kca_init_title), getStringWithLocale(R.string.app_name));
-        String initContent = getStringWithLocale(R.string.kca_init_content);
-        String initSubContent = String.format("%s %s", getStringWithLocale(R.string.app_name), getStringWithLocale(R.string.app_version));
-        kcaFirstDeckInfo = getStringWithLocale(R.string.kca_init_content);
-        startForeground(getNotificationId(NOTI_FRONT, 1), createViewNotification(initTitle, initContent, initSubContent));
-        isServiceOn = true;
-
-        KcaExpedition.setContext(getApplicationContext());
-
-        KcaVpnData.setHandler(handler);
+        int sniffer_mode = Integer.parseInt(getStringPreferences(getApplicationContext(), PREF_SNIFFER_MODE));
+        Log.e("KCA-S", String.valueOf(sniffer_mode));
+        switch (sniffer_mode) {
+            case SNIFFER_ACTIVE:
+                KcaVpnData.setHandler(handler);
+                break;
+            case SNIFFER_PASSIVE:
+                KcaReceiver.setHandler(handler);
+                break;
+            default:
+                stopSelf();
+        }
 
         KcaBattle.setHandler(nHandler);
         KcaApiData.setHandler(nHandler);
-        KcaOpendbAPI.setHandler(nHandler);
-        SettingActivity.setHandler(nHandler);
+        KcaAlarmService.setHandler(nHandler);
+        KcaOpenDBAPI.setHandler(nHandler);
+        MainActivity.setHandler(nHandler);
+        MainPreferenceFragment.setHandler(nHandler);
         KcaFairySelectActivity.setHandler(nHandler);
+        KcaViewButtonService.setHandler(nHandler);
+        KcaAkashiRepairInfo.initAkashiTimer();
 
+        isPassiveMode = Integer.parseInt(getStringPreferences(getApplicationContext(), PREF_SNIFFER_MODE)) == SNIFFER_PASSIVE;
+        if (isPassiveMode) {
+            receiver = new KcaReceiver();
+            IntentFilter filter = new IntentFilter(BROADCAST_ACTION);
+            registerReceiver(receiver, filter);
+        }
+
+        notifyFirstTime = true;
+        notifyBuilder = createBuilder(contextWithLocale, getServiceChannelId());
+        notifyTitle = KcaUtils.format(getStringWithLocale(R.string.kca_init_title), getStringWithLocale(R.string.app_name));
+        notifyContent = getStringWithLocale(R.string.kca_init_content);
+        // String initSubContent = KcaUtils.format("%s %s", getStringWithLocale(R.string.app_name), getStringWithLocale(R.string.app_version));
+        kcaFirstDeckInfo = getStringWithLocale(R.string.kca_init_content);
+        initViewNotificationBuilder(notifyTitle, notifyContent);
+        startForeground(getNotificationId(NOTI_FRONT, 1), notifyBuilder.build());
+
+        notificationTimeCounter = -1;
+        timer = new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    if (isMissionTimerViewEnabled()) {
+                        notificationTimeCounter += 1;
+                        if (notificationTimeCounter == 120) {
+                            notificationTimeCounter = 0;
+                        }
+                        updateExpViewNotification();
+                    }
+                    if (KcaAkashiRepairInfo.getAkashiTimerValue() > 0) {
+                        int second = KcaAkashiRepairInfo.getAkashiElapsedTimeInSecond();
+                        if (second >= AKASHI_TIMER_20MIN && isAkashiTimerNotiWait) {
+                            isAkashiTimerNotiWait = false;
+                        }
+                    }
+                } catch (Exception e) {
+                    dbHelper.recordErrorLog(ERROR_TYPE_SERVICE, "tmer", "", "", getStringFromException(e));
+                }
+            }
+        };
+        processExpeditionInfo(true);
+        runTimer();
         return START_STICKY;
     }
 
     // 서비스가 종료될 때 할 작업
 
     public void setServiceDown() {
-        MainActivity.isKcaServiceOn = false;
-        KcaApiData.userItemData = null;
-        for (int i = 0; i < 3; i++) {
-            if (kcaExpeditionList[i] != null) {
-                kcaExpeditionRunnableList[i].stopHandler();
-                kcaExpeditionList[i].interrupt();
-                kcaExpeditionList[i] = null;
-            }
-        }
-        for (int i = 0; i < 4; i++) {
-            if (kcaDockingRunnableList[i] != null) {
-                kcaDockingRunnableList[i].stopHandler();
-                kcaDockingList[i].interrupt();
-                kcaDockingList[i] = null;
-            }
-        }
+        isPortAccessed = false;
+        stopTimer();
 
         handler = null;
         nHandler = null;
 
-        mediaPlayer.release();
-        mediaPlayer = null;
+        if (mediaPlayer != null) {
+            mediaPlayer.release();
+            mediaPlayer = null;
+        }
 
-        stopForeground(true);
+        if (receiver != null) unregisterReceiver(receiver);
+        receiver = null;
+
         notifiManager.cancelAll();
-        viewNotificationBuilder = null;
         isServiceOn = false;
     }
 
     public void onDestroy() {
-        setServiceDown();
+        Log.e("KCA-S", "onDestroy Called");
+        stopService(new Intent(this, KcaBattleViewService.class));
+        stopService(new Intent(this, KcaQuestViewService.class));
+        stopService(new Intent(this, KcaFleetViewService.class));
+        stopService(new Intent(this, KcaAkashiViewService.class));
+        stopService(new Intent(this, KcaMapHpPopupService.class));
+        stopService(new Intent(this, KcaConstructPopupService.class));
+        stopService(new Intent(this, KcaDevelopPopupService.class));
+        stopService(new Intent(this, KcaLandAirBasePopupService.class));
         stopService(new Intent(this, KcaViewButtonService.class));
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-        prefs.edit().putBoolean("svcenabled", false).apply();
+        stopService(new Intent(this, KcaExpeditionCheckViewService.class));
+        stopService(new Intent(this, KcaCustomToastService.class));
+        setServiceDown();
+        KcaAlarmService.clearAlarmCount();
+        stopForeground(true);
+        dbHelper.close();
+        super.onDestroy();
     }
 
     public boolean isPackageExist(String name) {
@@ -275,150 +423,191 @@ public class KcaService extends Service {
         return isExist;
     }
 
-    private Notification createViewNotification(String title, String content1, String content2) {
+    private void initViewNotificationBuilder(String title, String content) {
         Intent aIntent = new Intent(KcaService.this, MainActivity.class);
         PendingIntent pendingIntent = PendingIntent.getActivity(KcaService.this, 0, aIntent,
                 PendingIntent.FLAG_CANCEL_CURRENT);
-        viewNotificationText = new Notification.BigTextStyle();
-        viewNotificationBuilder = new Notification.Builder(getApplicationContext())
+
+        int type = KcaAlarmService.getAlarmCount() > 0 ? 1 : 0;
+        String fairyId = "noti_icon_".concat(getStringPreferences(getApplicationContext(), PREF_FAIRY_ICON));
+        int viewBitmapSmallId = getId("ic_stat_notify_".concat(String.valueOf(type)), R.mipmap.class);
+        Bitmap viewBitmap = KcaUtils.getFairyImageFromStorage(getApplicationContext(), fairyId, dbHelper);
+
+        notifyBuilder.setContentTitle(title)
                 .setSmallIcon(viewBitmapSmallId)
                 .setLargeIcon(viewBitmap)
-                .setContentTitle(title)
-                .setContentText(getStringWithLocale(R.string.kca_view_context_expand))
-                .setStyle(viewNotificationText.bigText(content1))
                 .setTicker(title)
                 .setContentIntent(pendingIntent)
-                .setPriority(Notification.PRIORITY_MAX)
+                .setOnlyAlertOnce(true)
+                .setContentText(content)
+                .setStyle(new NotificationCompat.BigTextStyle()
+                        .bigText(content))
                 .setOngoing(true).setAutoCancel(false);
-        if (isExpViewEnabled()) {
-            viewNotificationBuilder.setStyle(viewNotificationText.setSummaryText(content2));
+
+        if (getBooleanPreferences(getApplicationContext(), PREF_KCA_SET_PRIORITY)) {
+            notifyBuilder.setPriority(IMPORTANCE_HIGH);
+        } else {
+            notifyBuilder.setPriority(IMPORTANCE_DEFAULT);
         }
-        return viewNotificationBuilder.build();
     }
 
-    private Notification createExpeditionNotification(int missionNo, String missionName, String kantaiName, boolean cancelFlag, boolean caFlag) {
-        PendingIntent pendingIntent = PendingIntent.getActivity(KcaService.this, 0, getKcIntent(getApplicationContext()),
-                PendingIntent.FLAG_UPDATE_CURRENT);
-        String title = "";
-        String content = "";
-        if (cancelFlag) {
-            title = String.format(getStringWithLocale(R.string.kca_noti_title_exp_canceled), missionNo, missionName);
-            content = String.format(getStringWithLocale(R.string.kca_noti_content_exp_canceled), kantaiName, missionNo);
-        } else {
-            title = String.format(getStringWithLocale(R.string.kca_noti_title_exp_finished), missionNo, missionName);
-            if (caFlag)
-                content = String.format(getStringWithLocale(R.string.kca_noti_content_exp_finished_canceled), kantaiName, missionNo);
-            else
-                content = String.format(getStringWithLocale(R.string.kca_noti_content_exp_finished_normal), kantaiName, missionNo);
+    private void updateViewNotificationBuilder(String title, String content2) {
+        Intent aIntent = new Intent(KcaService.this, MainActivity.class);
+        PendingIntent pendingIntent = PendingIntent.getActivity(KcaService.this, 0, aIntent,
+                PendingIntent.FLAG_CANCEL_CURRENT);
 
-        }
-        Notification.Builder builder = new Notification.Builder(getApplicationContext())
-                .setSmallIcon(R.mipmap.expedition_notify_icon)
-                .setLargeIcon(expBitmap)
-                .setContentTitle(title)
-                .setContentText(content)
+        notifyBuilder.setContentTitle(title)
                 .setTicker(title)
-                .setContentIntent(pendingIntent);
-
-        String soundKind = getStringPreferences(getApplicationContext(), PREF_KCA_NOTI_SOUND_KIND);
-        if (soundKind.equals(getString(R.string.sound_kind_value_normal)) || soundKind.equals(getString(R.string.sound_kind_value_mixed))) {
-            if (mAudioManager.getRingerMode() == AudioManager.RINGER_MODE_NORMAL) {
-                if (soundKind.equals(getString(R.string.sound_kind_value_mixed))) {
-                    builder.setDefaults(Notification.DEFAULT_VIBRATE);
-                }
-                builder.setSound(Uri.parse(getStringPreferences(getApplicationContext(), PREF_KCA_NOTI_RINGTONE)));
-            } else if (mAudioManager.getRingerMode() == AudioManager.RINGER_MODE_VIBRATE) {
-                builder.setDefaults(Notification.DEFAULT_VIBRATE);
-            } else {
-                builder.setDefaults(0);
-            }
-        }
-        if (soundKind.equals(getString(R.string.sound_kind_value_vibrate))) {
-            if (mAudioManager.getRingerMode() != AudioManager.RINGER_MODE_SILENT) {
-                builder.setDefaults(Notification.DEFAULT_VIBRATE);
-            } else {
-                builder.setDefaults(0);
-            }
-        }
-        if (soundKind.equals(getString(R.string.sound_kind_value_mute))) {
-            builder.setDefaults(0);
-        }
-
-        Notification Notifi = builder.build();
-        Notifi.flags = Notification.FLAG_AUTO_CANCEL;
-        setFrontViewNotifier(FRONT_NONE, 0, null);
-        return Notifi;
+                .setContentIntent(pendingIntent)
+                .setContentText(content2)
+                .setStyle(new NotificationCompat.BigTextStyle()
+                        .bigText(content2));
     }
 
-    private Notification createDockingNotification(int dockId, String shipName) {
-        PendingIntent pendingIntent = PendingIntent.getActivity(KcaService.this, 0, getKcIntent(getApplicationContext()),
-                PendingIntent.FLAG_UPDATE_CURRENT);
-        String title = String.format(getStringWithLocale(R.string.kca_noti_title_dock_finished), dockId + 1);
-        String content = "";
-        if (shipName.length() > 0) {
-            content = String.format(getStringWithLocale(R.string.kca_noti_content_dock_finished), dockId + 1, shipName);
-        } else {
-            content = String.format(getStringWithLocale(R.string.kca_noti_content_dock_finished_nodata), dockId + 1);
-        }
-
-        Notification.Builder builder = new Notification.Builder(getApplicationContext())
-                .setSmallIcon(R.mipmap.docking_notify_icon)
-                .setLargeIcon(dockBitmap)
-                .setContentTitle(title)
-                .setContentText(content)
-                .setTicker(title)
-                .setContentIntent(pendingIntent);
-        String soundKind = getStringPreferences(getApplicationContext(), PREF_KCA_NOTI_SOUND_KIND);
-        if (soundKind.equals(getString(R.string.sound_kind_value_normal)) || soundKind.equals(getString(R.string.sound_kind_value_mixed))) {
-            if (mAudioManager.getRingerMode() == AudioManager.RINGER_MODE_NORMAL) {
-                if (soundKind.equals(getString(R.string.sound_kind_value_mixed))) {
-                    builder.setDefaults(Notification.DEFAULT_VIBRATE);
+    private void updateExpViewNotification() {
+        int viewType = getExpeditionType();
+        notifyContent = "";
+        if (isMissionTimerViewEnabled()) {
+            if (!KcaExpedition2.isMissionExist()) {
+                if (isFirstState) notifyContent = KcaUtils.format("%s %s", getStringWithLocale(R.string.app_name), getStringWithLocale(R.string.app_version));
+                else notifyContent = notifyContent.concat(getStringWithLocale(R.string.kca_view_noexpedition));
+            } else {
+                List<String> kcaExpStrList = new ArrayList<String>();
+                for (int i = 1; i < 4; i++) {
+                    String str = KcaExpedition2.getTimeInfoStr(i, viewType);
+                    if (str.length() > 0) {
+                        kcaExpStrList.add(str);
+                    }
                 }
-                builder.setSound(Uri.parse(getStringPreferences(getApplicationContext(), PREF_KCA_NOTI_RINGTONE)));
-            } else if (mAudioManager.getRingerMode() == AudioManager.RINGER_MODE_VIBRATE) {
-                builder.setDefaults(Notification.DEFAULT_VIBRATE);
-            } else {
-                builder.setDefaults(0);
+                if (viewType == 1) {
+                    int value = (notificationTimeCounter / 2) % (kcaExpStrList.size());
+                    String countStr = KcaUtils.format(" (%d/%d)", value+1, kcaExpStrList.size());
+                    notifyContent = kcaExpStrList.get(value).concat(countStr);
+                } else {
+                    notifyContent = joinStr(kcaExpStrList, " / ");
+                }
             }
-        }
-        if (soundKind.equals(getString(R.string.sound_kind_value_vibrate))) {
-            if (mAudioManager.getRingerMode() != AudioManager.RINGER_MODE_SILENT) {
-                builder.setDefaults(Notification.DEFAULT_VIBRATE);
-            } else {
-                builder.setDefaults(0);
+            if (notifyContent.trim().length() == 0) {
+                notifyContent = notifyContent.concat(getStringWithLocale(R.string.kca_view_noexpedition));
             }
-        }
-        if (soundKind.equals(getString(R.string.sound_kind_value_mute))) {
-            builder.setDefaults(0);
+        } else {
+            notifyContent = KcaUtils.format("%s %s", getStringWithLocale(R.string.app_name), getStringWithLocale(R.string.app_version));
         }
 
-        Notification Notifi = builder.build();
-        Notifi.flags = Notification.FLAG_AUTO_CANCEL;
-        setFrontViewNotifier(FRONT_NONE, 0, null);
-        return Notifi;
+        String nodeString = "";
+        if (currentNodeInfo.length() > 0) {
+            nodeString = KcaUtils.format("[%s]", currentNodeInfo.replaceAll("[()]", "").replaceAll("\\s", "/"));
+        }
+
+        switch (heavyDamagedMode) {
+            case HD_DAMECON:
+                notifyTitle = KcaUtils.format(getStringWithLocale(R.string.kca_view_hdmg_damecon_format), getStringWithLocale(R.string.app_name), nodeString).trim();
+                break;
+            case HD_DANGER:
+                notifyTitle = KcaUtils.format(getStringWithLocale(R.string.kca_view_hdmg_format), getStringWithLocale(R.string.app_name), nodeString).trim();
+                break;
+            default:
+                notifyTitle = KcaUtils.format(getStringWithLocale(R.string.kca_view_normal_format), getStringWithLocale(R.string.app_name), nodeString).trim();
+                break;
+        }
+        updateNotification(true);
+    }
+
+    private void updateNotification(boolean change_content) {
+        if (change_content) {
+            updateViewNotificationBuilder(notifyTitle, notifyContent);
+        }
+        notifiManager.notify(getNotificationId(NOTI_FRONT, 1), notifyBuilder.build());
+    }
+
+    private void updateNotificationClearFairyButton() {
+        // updateViewNotificationBuilder(notifyTitle, notifyContent);
+        notifyBuilder.mActions.clear();
+        notifiManager.notify(getNotificationId(NOTI_FRONT, 1), notifyBuilder.build());
+    }
+
+    private void setExpeditionAlarm(int idx, int mission_no, String deck_name, long arrive_time, boolean cancel_flag, boolean ca_flag, Intent aIntent) {
+        if (!getReturnFlag(mission_no) && !cancel_flag) return;
+
+        JsonObject expeditionAlarmData = new JsonObject();
+        expeditionAlarmData.addProperty("type", KcaAlarmService.TYPE_EXPEDITION);
+        expeditionAlarmData.addProperty("idx", idx);
+        expeditionAlarmData.addProperty("mission_no", mission_no);
+        expeditionAlarmData.addProperty("kantai_name", deck_name);
+        expeditionAlarmData.addProperty("cancel_flag", cancel_flag);
+        expeditionAlarmData.addProperty("ca_flag", ca_flag);
+        if (ca_flag) idx = idx | KcaAlarmService.EXP_CANCEL_FLAG;
+
+        aIntent.putExtra("data", expeditionAlarmData.toString());
+        PendingIntent pendingIntent = PendingIntent.getService(
+                getApplicationContext(),
+                getNotificationId(NOTI_EXP, idx),
+                aIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT
+        );
+        setAlarm(arrive_time, pendingIntent, getNotificationId(NOTI_EXP, idx), true);
+    }
+
+    private void setDockingAlarm(int dockId, int shipId, long complete_time, Intent aIntent) {
+        String shipName = "";
+        int shipKcId = -1;
+        if (isGameDataLoaded()) {
+            JsonObject shipData = KcaApiData.getUserShipDataById(shipId, "ship_id");
+            shipKcId = shipData.get("ship_id").getAsInt();
+        }
+        JsonObject dockingAlarmData = new JsonObject();
+        dockingAlarmData.addProperty("type", KcaAlarmService.TYPE_DOCKING);
+        dockingAlarmData.addProperty("dock_id", dockId);
+        dockingAlarmData.addProperty("ship_id", shipKcId);
+
+        aIntent.putExtra("data", dockingAlarmData.toString());
+        PendingIntent pendingIntent = PendingIntent.getService(
+                getApplicationContext(),
+                getNotificationId(NOTI_DOCK, dockId),
+                aIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT
+        );
+        setAlarm(complete_time, pendingIntent, getNotificationId(NOTI_DOCK, dockId), true);
+    }
+
+    private void setMoraleAlarm(int deckId, String deck_name, long complete_time, Intent aIntent) {
+        JsonObject moraleAlarmData = new JsonObject();
+        moraleAlarmData.addProperty("type", KcaAlarmService.TYPE_MORALE);
+        moraleAlarmData.addProperty("kantai_name", deck_name);
+        moraleAlarmData.addProperty("idx", deckId);
+
+        aIntent.putExtra("data", moraleAlarmData.toString());
+        PendingIntent pendingIntent = PendingIntent.getService(
+                getApplicationContext(),
+                getNotificationId(NOTI_MORALE, deckId),
+                aIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT
+        );
+
+        setAlarm(complete_time, pendingIntent, getNotificationId(NOTI_DOCK, deckId), false);
+    }
+
+    private void setAkashiAlarm(Intent aIntent) {
+        JsonObject akashiAlarmData = new JsonObject();
+        akashiAlarmData.addProperty("type", KcaAlarmService.TYPE_AKASHI);
+        aIntent.putExtra("data", akashiAlarmData.toString());
+        PendingIntent pendingIntent = PendingIntent.getService(
+                getApplicationContext(),
+                getNotificationId(NOTI_AKASHI, 0),
+                aIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT
+        );
+        long complete_time = KcaAkashiRepairInfo.getAkashiRepairTime();
+        if (complete_time > 0) setAlarm(complete_time, pendingIntent, getNotificationId(NOTI_AKASHI, 0), false);
     }
 
     private void toastInfo() {
-        if (!KcaApiData.isGameDataLoaded()) return;
-        int cn = getSeekCn();
-        String seekType = getSeekType();
-        int[] airPowerRange = KcaDeckInfo.getAirPowerRange(currentPortDeckData, 0, KcaBattle.getEscapeFlag());
-        String airPowerValue = String.format(getStringWithLocale(R.string.kca_toast_airpower), airPowerRange[0], airPowerRange[1]);
-        String seekValue = String.format(getStringWithLocale(R.string.kca_toast_seekvalue_f), seekType, KcaDeckInfo.getSeekValue(currentPortDeckData, 0, cn, KcaBattle.getEscapeFlag()));
-        int[] tp = KcaDeckInfo.getTPValue(currentPortDeckData, "0", KcaBattle.getEscapeFlag());
-        String tpValue = String.format(getStringWithLocale(R.string.kca_view_tpvalue), tp[0], tp[1]);
-        List<String> toastList = new ArrayList<String>();
-        if (airPowerRange[1] > 0) {
-            toastList.add(airPowerValue);
+        if (KcaFleetCheckPopupService.isActive()) {
+            Intent qintent = new Intent(getBaseContext(), KcaFleetCheckPopupService.class);
+            qintent.setAction(KcaFleetCheckPopupService.FCHK_SHOW_ACTION);
+            startService(qintent);
         }
-        toastList.add(seekValue);
-        if (tp[0] > 0) {
-            toastList.add(tpValue);
-        }
-        KcaCustomToast customToast = new KcaCustomToast(getApplicationContext());
-        customToast.showToast(joinStr(toastList, " / "), Toast.LENGTH_LONG, ContextCompat.getColor(getApplicationContext(), R.color.colorPrimaryDark));
     }
-
 
     private static class kcaServiceHandler extends Handler {
         private final WeakReference<KcaService> mService;
@@ -436,50 +625,105 @@ public class KcaService extends Service {
         }
     }
 
+    private void makeToast(String message, int length, int color) {
+        KcaCustomToast customToast = new KcaCustomToast(getApplicationContext());
+        showCustomToast(customToast, message, length, color);
+    }
+
     public void handleServiceMessage(Message msg) {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
         String url = msg.getData().getString("url");
         byte[] raw = msg.getData().getByteArray("data");
         Reader data = new InputStreamReader(new ByteArrayInputStream(raw));
         String request = msg.getData().getString("request");
-        KcaCustomToast customToast = new KcaCustomToast(getApplicationContext());
 
-        if (!prefs.getBoolean(PREF_SVC_ENABLED, false) || url.length() == 0 || viewNotificationBuilder == null) {
+        if (!prefs.getBoolean(PREF_SVC_ENABLED, false) || url.length() == 0) {
             return;
         }
 
-        JsonObject jsonDataObj;
+        final JsonObject jsonDataObj;
         try {
             String init = new String(Arrays.copyOfRange(raw, 0, 7));
             if (init.contains("svdata=")) {
                 data.skip("svdata=".length());
             }
-            jsonDataObj = new JsonParser().parse(data).getAsJsonObject();
+            if (raw.length > 0) jsonDataObj = gson.fromJson(data, JsonObject.class);
+            else jsonDataObj = new JsonObject();
+            if (url.equals(KCA_API_RESOURCE_URL)) {
+                dbHelper.recordErrorLog(ERROR_TYPE_VPN, KCA_API_RESOURCE_URL, "", "", request);
+                return;
+            }
+            if (getBooleanPreferences(getApplicationContext(), PREF_PACKET_LOG)) {
+                packetLogger.log(url, request, jsonDataObj.toString());
+            }
+
+            if (url.equals(KCA_API_VPN_DATA_ERROR)) { // VPN Data Dump Send
+                String api_url = jsonDataObj.get("uri").getAsString();
+                String api_request = jsonDataObj.get("request").getAsString();
+                String api_response = jsonDataObj.get("response").getAsString();
+                String api_error = jsonDataObj.get("error").getAsString();
+
+                List<String> filtered_resquest_list = new ArrayList<String>();
+                try {
+                    String[] requestData = api_request.split("&");
+                    for (int i = 0; i < requestData.length; i++) {
+                        String decodedData = URLDecoder.decode(requestData[i], "utf-8");
+                        if (!decodedData.startsWith("api_token")) {
+                            filtered_resquest_list.add(requestData[i]);
+                        }
+                    }
+                    api_request = joinStr(filtered_resquest_list, "&");
+                } catch (UnsupportedEncodingException e1) {
+                    e1.printStackTrace();
+                }
+
+                makeToast(getStringWithLocale(R.string.service_failed_msg), Toast.LENGTH_SHORT, ContextCompat.getColor(getApplicationContext(), R.color.colorPrimaryDark));
+                dbHelper.recordErrorLog(ERROR_TYPE_VPN, api_url, api_request, api_response, api_error);
+                return;
+            }
 
             if (url.startsWith(KCA_VERSION)) {
                 isInitState = false;
                 isPortAccessed = false;
+                isInBattle = false;
                 api_start2_init = false;
                 api_start2_loading_flag = true;
-                stopService(new Intent(this, KcaViewButtonService.class));
+                KcaFleetViewService.setReadyFlag(false);
                 //Toast.makeText(contextWithLocale, "KCA_VERSION", Toast.LENGTH_LONG).show();
                 JsonObject api_version = jsonDataObj.get("api").getAsJsonObject();
                 kca_version = api_version.get("api_start2").getAsString();
                 Log.e("KCA", kca_version);
-                if (!getStringPreferences(getApplicationContext(), PREF_KCA_VERSION).equals(kca_version)) {
-                    api_start2_down_mode = true;
-                } else {
-                    api_start2_down_mode = false;
-                    JsonObject kcDataObj = readCacheData(getApplicationContext(), KCANOTIFY_S2_CACHE_FILENAME);
-                    //Log.e("KCA", kcDataObj.toJSONString());
-                    if (kcDataObj != null && kcDataObj.has("api_data")) {
-                        //Toast.makeText(contextWithLocale, "Load Kancolle Data", Toast.LENGTH_LONG).show();
-                        KcaApiData.getKcGameData(kcDataObj.getAsJsonObject("api_data"));
-                        setPreferences(getApplicationContext(), PREF_KCA_VERSION, kca_version);
-                    }
+
+                setPreferences(getApplicationContext(), PREF_KCA_VERSION, kca_version);
+                if (!getStringPreferences(getApplicationContext(), PREF_KCA_DATA_VERSION).equals(kca_version)) {
+                    makeToast("new game data detected: " + String.valueOf(kca_version), Toast.LENGTH_LONG,
+                            ContextCompat.getColor(getApplicationContext(), R.color.colorPrimaryDark));
                 }
+                JsonObject kcDataObj = dbHelper.getJsonObjectValue(DB_KEY_STARTDATA);
+                //Log.e("KCA", kcDataObj.toJSONString());
+                if (kcDataObj != null && kcDataObj.has("api_data")) {
+                    //Toast.makeText(contextWithLocale, "Load Kancolle Data", Toast.LENGTH_LONG).show();
+                    KcaApiData.getKcGameData(kcDataObj.getAsJsonObject("api_data"));
+                }
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+                        && !Settings.canDrawOverlays(getApplicationContext())) {
+                    // Can not draw overlays: pass
+                } else {
+                    startService(new Intent(this, KcaViewButtonService.class));
+                    startService(new Intent(this, KcaQuestViewService.class));
+                    sendQuestCompletionInfo();
+                }
+
+                KcaMoraleInfo.initMoraleValue(Integer.parseInt(getStringPreferences(getApplicationContext(), PREF_KCA_MORALE_MIN)));
                 return;
                 //Toast.makeText(contextWithLocale, getPreferences("kca_version") + " " + String.valueOf(api_start2_down_mode), Toast.LENGTH_LONG).show();
+            }
+
+            if (url.startsWith(API_WORLD_GET_WORLDINFO)) {
+                makeToast(getStringWithLocale(R.string.kca_toast_server_select), Toast.LENGTH_LONG,
+                        ContextCompat.getColor(getApplicationContext(), R.color.colorPrimaryDark));
+                return;
             }
 
             if (url.startsWith(API_WORLD_GET_ID)) {
@@ -490,12 +734,12 @@ public class KcaService extends Service {
                 return;
             }
 
-            if (url.startsWith(API_START2)) {
+            if (url.equals(API_START2) || url.equals(API_START2_NEW)) {
                 //Log.e("KCA", "Load Kancolle Data");
                 //Toast.makeText(contextWithLocale, "API_START2", Toast.LENGTH_LONG).show();
 
                 api_start2_data = jsonDataObj.toString();
-                writeCacheData(getApplicationContext(), api_start2_data.getBytes(), KCANOTIFY_S2_CACHE_FILENAME);
+                dbHelper.putValue(DB_KEY_STARTDATA, api_start2_data);
 
                 if (jsonDataObj.has("api_data")) {
                     //Toast.makeText(contextWithLocale, "Load Kancolle Data", Toast.LENGTH_LONG).show();
@@ -511,28 +755,37 @@ public class KcaService extends Service {
                 //Log.e("KCA", "Load Item Data");
 
                 if (jsonDataObj.has("api_data")) {
+                    //dbHelper.putValue(DB_KEY_USEREQUIP, jsonDataObj.getAsJsonObject("api_data").getAsJsonArray("api_slot_item").toString());
                     JsonObject requiredInfoApiData = jsonDataObj.getAsJsonObject("api_data");
-                    int size = KcaApiData.getSlotItemData(requiredInfoApiData);
-                    int userId = KcaApiData.getUserId(requiredInfoApiData);
-                    //Log.e("KCA", "Total Items: " + String.valueOf(size));
-                    //Toast.makeText(contextWithLocale, String.valueOf(userId), Toast.LENGTH_LONG).show();
-
-                    if (api_start2_data == null && api_start2_down_mode) {
-                        customToast.showToast("Downloading Data", Toast.LENGTH_LONG, ContextCompat.getColor(getApplicationContext(), R.color.colorPrimaryDark));
-                        new retrieveApiStartData().execute("", "down", "");
-                        setFrontViewNotifier(FRONT_NONE, 0, getStringWithLocale(R.string.kca_toast_loading_data));
-                    }
+                    dbHelper.putValue(DB_KEY_KDOCKDATA, requiredInfoApiData.getAsJsonArray("api_kdock").toString());
+                    JsonArray slotitem_data = requiredInfoApiData.getAsJsonArray("api_slot_item");
+                    int size2 = KcaApiData.putSlotItemDataToDB(slotitem_data);
+                    Log.e("KCA", "Total Items: " + String.valueOf(size2));
+                    if (size2 > 0) restartFlag = false;
                 }
                 return;
+            }
+
+            if (url.startsWith(API_GET_MEMBER_USEITEM)) {
+                if (jsonDataObj.has("api_data")) {
+                    dbHelper.putValue(DB_KEY_USEITEMS, jsonDataObj.getAsJsonArray("api_data").toString());
+                }
             }
 
             if (url.startsWith(API_GET_MEMBER_DECK)) {
                 //Log.e("KCA", "Expedition Handler Called");
                 if (jsonDataObj.has("api_data")) {
-                    JsonArray reqGetMemberDeckApiData = jsonDataObj.get("api_data").getAsJsonArray();
-                    processExpeditionInfo(reqGetMemberDeckApiData);
+                    dbHelper.putValue(DB_KEY_DECKPORT, jsonDataObj.getAsJsonArray("api_data").toString());
+                    processExpeditionInfo();
                 }
-                return;
+            }
+
+            if (url.startsWith(API_GET_MEMBER_NDOCK)) {
+                if (jsonDataObj.has("api_data")) {
+                    JsonArray api_data = jsonDataObj.getAsJsonArray("api_data");
+                    KcaDocking.setDockData(api_data);
+                    dbHelper.putValue(DB_KEY_NDOCKDATA, api_data.toString());
+                }
             }
 
             if (url.startsWith(API_REQ_MISSION_RESULT)) {
@@ -545,72 +798,223 @@ public class KcaService extends Service {
                         break;
                     }
                 }
-                notifiManager.cancel(getNotificationId(NOTI_EXP, deck_id - 1));
-            }
-
-            if (url.startsWith(API_GET_MEMBER_NDOCK)) {
+                int nid = getNotificationId(NOTI_EXP, deck_id);
+                Intent deleteIntent = new Intent(this, KcaAlarmService.class).setAction(DELETE_ACTION.concat(String.valueOf(nid)));
+                startService(deleteIntent);
+                notifiManager.cancel(nid);
                 if (jsonDataObj.has("api_data")) {
-                    JsonArray api_data = jsonDataObj.getAsJsonArray("api_data");
-                    processDockingInfo(api_data);
-                }
-                return;
-            }
+                    JsonObject api_data = jsonDataObj.getAsJsonObject("api_data");
+                    if (api_data.has("api_clear_result") && api_data.get("api_clear_result").getAsInt() > 0) {
+                        questTracker.updateIdCountTracker("402");
+                        questTracker.updateIdCountTracker("403");
+                        questTracker.updateIdCountTracker("404");
 
-            if (url.startsWith(API_REQ_NYUKYO_SPEEDCHAGNE)) {
-                int ndock_id = -1;
-                String[] requestData = request.split("&");
-                for (int i = 0; i < requestData.length; i++) {
-                    String decodedData = URLDecoder.decode(requestData[i], "utf-8");
-                    if (decodedData.startsWith("api_ndock_id")) {
-                        ndock_id = Integer.valueOf(decodedData.replace("api_ndock_id=", "")) - 1;
-                        break;
+                        String api_name = api_data.get("api_quest_name").getAsString();
+                        int api_no = KcaApiData.getExpeditionNoByName(api_name);
+                        switch (api_no) {
+                            case 3: // 경계임무 (3)
+                                questTracker.updateIdCountTracker("426", 0);
+                                break;
+                            case 4: // 대잠경계임무 (4)
+                                questTracker.updateIdCountTracker("426", 1);
+                                questTracker.updateIdCountTracker("428", 0);
+                                break;
+                            case 5: // 해상호위 (5)
+                                questTracker.updateIdCountTracker("424");
+                                questTracker.updateIdCountTracker("426", 2);
+                                break;
+                            case 10: // 강행정찰임무 (10)
+                                questTracker.updateIdCountTracker("426", 3);
+                                break;
+                            case 37: // 도쿄급행 (37, 38)
+                            case 38:
+                                questTracker.updateIdCountTracker("410");
+                                questTracker.updateIdCountTracker("411");
+                                break;
+                            case 101: // 해협경계 (A2)
+                                questTracker.updateIdCountTracker("428", 1);
+                                break;
+                            case 102: // 장시간대잠 (A3)
+                                questTracker.updateIdCountTracker("428", 2);
+                                break;
+                            default:
+                                break;
+                        }
+                        updateQuestView();
+                    }
+                    if (api_data.has("api_get_exp")) {
+                        dbHelper.updateExpScore(api_data.get("api_get_exp").getAsInt());
                     }
                 }
-                if (ndock_id != -1) processDockingSpeedup(ndock_id);
+            }
+
+            if (url.startsWith(API_REQ_HOKYU_CHARGE)) {
+                questTracker.updateIdCountTracker("504");
+                updateQuestView();
+            }
+
+            if (url.startsWith(API_GET_MEMBER_RECORD)) {
+                if (jsonDataObj.has("api_data")) {
+                    JsonObject api_data = jsonDataObj.getAsJsonObject("api_data");
+                    JsonArray slotitem = api_data.getAsJsonArray("api_slotitem");
+                    restartFlag = (slotitem.get(0).getAsInt() != dbHelper.getItemCount());
+                }
                 return;
             }
 
             if (url.startsWith(API_PORT)) {
                 isPortAccessed = true;
-                stopService(new Intent(this, KcaViewButtonService.class));
+                isFirstState = false;
+                stopService(new Intent(this, KcaBattleViewService.class));
+                startService(new Intent(this, KcaViewButtonService.class)
+                        .setAction(KcaViewButtonService.DEACTIVATE_BATTLEVIEW_ACTION));
+                startService(new Intent(this, KcaViewButtonService.class)
+                        .setAction(KcaViewButtonService.RESET_FAIRY_STATUS_ACTION));
+
                 if (jsonDataObj.has("api_data")) {
                     JsonObject reqPortApiData = jsonDataObj.getAsJsonObject("api_data");
                     KcaApiData.getPortData(reqPortApiData);
                     if (reqPortApiData.has("api_deck_port")) {
-                        currentPortDeckData = reqPortApiData.getAsJsonArray("api_deck_port");
+                        dbHelper.putValue(DB_KEY_DECKPORT, reqPortApiData.getAsJsonArray("api_deck_port").toString());
+                        dbHelper.test();
+                    }
+                    if (reqPortApiData.has("api_ship")) {
+                        final String ship_data = reqPortApiData.get("api_ship").toString();
+                        Thread ship_data_thread = new Thread(new Runnable() {
+                            @Override
+                            public void run() {
+                                dbHelper.putValue(DB_KEY_SHIPIFNO, ship_data);
+                            }
+                        });
+                        ship_data_thread.start();
+                    }
+                    if (reqPortApiData.has("api_ndock")) {
+                        dbHelper.putValue(DB_KEY_NDOCKDATA, reqPortApiData.getAsJsonArray("api_ndock").toString());
+                        JsonArray nDockData = reqPortApiData.getAsJsonArray("api_ndock");
+                        KcaDocking.setDockData(nDockData);
+                        processDockingInfo();
+                    }
+
+                    if (reqPortApiData.has("api_material")) {
+                        JsonArray material_data = reqPortApiData.getAsJsonArray("api_material");
+                        dbHelper.putValue(DB_KEY_MATERIALS, material_data.toString());
+                        recordResourceLog(material_data, true);
                     }
                 }
+            }
+
+            if (url.startsWith(API_REQ_MAP_START) || url.startsWith(API_REQ_MAP_NEXT)) {
+                if (jsonDataObj.has("api_data") && isBattleNodeEnabled()) {
+                    JsonObject api_data = jsonDataObj.getAsJsonObject("api_data");
+                    int currentMapArea = api_data.get("api_maparea_id").getAsInt();
+                    int currentMapNo = api_data.get("api_mapinfo_no").getAsInt();
+                    int currentNode = api_data.get("api_no").getAsInt();
+                    String currentNodeAlphabet = KcaApiData.getCurrentNodeAlphabet(currentMapArea, currentMapNo, currentNode);
+                    int api_event_kind = api_data.get("api_event_kind").getAsInt();
+                    int api_event_id = api_data.get("api_event_id").getAsInt();
+                    int api_color_no = api_data.get("api_color_no").getAsInt();
+                    currentNodeInfo = KcaApiData.getNodeFullInfo(contextWithLocale, currentNodeAlphabet, api_event_id, api_event_kind, false);
+                    makeToast(currentNodeInfo, Toast.LENGTH_LONG, getNodeColor(getApplicationContext(), api_event_id, api_event_kind, api_color_no));
+                }
+            }
+
+            if (url.startsWith(API_GET_MEMBER_SLOT_ITEM)) {
+                if (jsonDataObj.has("api_data")) {
+                    JsonArray api_data = jsonDataObj.get("api_data").getAsJsonArray();
+                    KcaApiData.putSlotItemDataToDB(api_data);
+                    restartFlag = false;
+                }
+            }
+
+            if (url.equals(API_GET_MEMBER_MATERIAL)) {
+                if (jsonDataObj.has("api_data")) {
+                    JsonArray api_data = jsonDataObj.get("api_data").getAsJsonArray();
+                    dbHelper.putValue(DB_KEY_MATERIALS, api_data.toString());
+                    recordResourceLog(api_data, true);
+                }
+                return;
+            }
+
+            if (!API_QUEST_REQS.contains(url) && !url.equals(API_GET_MEMBER_MATERIAL) && KcaQuestViewService.getQuestMode()) {
+                startService(new Intent(this, KcaViewButtonService.class)
+                        .setAction(KcaViewButtonService.DEACTIVATE_QUESTVIEW_ACTION));
+                KcaQuestViewService.setQuestMode(false);
+                startService(new Intent(this, KcaQuestViewService.class)
+                        .setAction(KcaQuestViewService.CLOSE_QUESTVIEW_ACTION));
+                updateQuestView();
             }
 
             if (url.startsWith(API_GET_MEMBER_QUESTLIST)) {
-                if (getBooleanPreferences(getApplicationContext(), PREF_KCA_QUESTVIEW_USE)) {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
-                            && !Settings.canDrawOverlays(getApplicationContext())) {
-                        // Can not draw overlays: pass
-                    } else if (jsonDataObj.has("api_data")) {
-                        JsonObject api_data = jsonDataObj.getAsJsonObject("api_data");
-                        KcaQuestViewService.setApiData(api_data);
-                        Intent intent = new Intent(this, KcaViewButtonService.class)
-                                .setAction(KcaViewButtonService.SHOW_QUEST_INFO);
-                        startService(intent);
+                startService(new Intent(this, KcaViewButtonService.class)
+                        .setAction(KcaViewButtonService.ACTIVATE_QUESTVIEW_ACTION));
+                KcaQuestViewService.setQuestMode(true);
+                int api_tab_id = -1;
+                String[] requestData = request.split("&");
+                for (int i = 0; i < requestData.length; i++) {
+                    String decodedData = URLDecoder.decode(requestData[i], "utf-8");
+                    if (decodedData.startsWith("api_tab_id")) {
+                        api_tab_id = Integer.valueOf(decodedData.replace("api_tab_id=", ""));
+                        break;
                     }
                 }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+                        && !Settings.canDrawOverlays(getApplicationContext())) {
+                    // Can not draw overlays: pass
+                } else if (jsonDataObj.has("api_data")) {
+                    JsonObject api_data = jsonDataObj.getAsJsonObject("api_data");
+                    KcaQuestViewService.setApiData(api_data);
+                    dbHelper.updateQuestCheck(api_tab_id, api_data);
+                    startService(new Intent(getBaseContext(), KcaQuestViewService.class)
+                            .setAction(REFRESH_QUESTVIEW_ACTION).putExtra("tab_id", api_tab_id));
+                    if (dbHelper.checkQuestListValid()) QSyncWrite();
+                }
+
+                sendQuestCompletionInfo();
+                return;
+            }
+
+            if (url.startsWith(API_REQ_QUEST_CLEARITEMGET)) {
+                int quest_id = 0;
+                String[] requestData = request.split("&");
+                for (int i = 0; i < requestData.length; i++) {
+                    String decodedData = URLDecoder.decode(requestData[i], "utf-8");
+                    if (decodedData.startsWith("api_quest_id")) {
+                        quest_id = Integer.valueOf(decodedData.replace("api_quest_id=", ""));
+                        break;
+                    }
+                }
+                Log.e("KCA", "clear " + String.valueOf(quest_id));
+                dbHelper.removeQuest(quest_id);
+                questTracker.removeQuestTrack(quest_id, true);
+                if (quest_id == 212 || quest_id == 218) questTracker.clearApDupFlag();
+                sendQuestCompletionInfo();
+                return;
+            }
+
+            if (API_WIDGET_TU_REQS.contains(url)) {
+                Intent widgetUpdateIndent = new Intent(getApplicationContext(), KcaTimerWidget.class);
+                widgetUpdateIndent.setAction(WIDGET_DATA_UPDATE);
+                sendBroadcast(widgetUpdateIndent);
             }
 
             // Game Data Dependent Tasks
-            if (!isUserItemDataLoaded()) {
-                customToast.showToast(getStringWithLocale(R.string.kca_toast_restart_at_kcanotify), Toast.LENGTH_LONG, ContextCompat.getColor(getApplicationContext(), R.color.colorPrimaryDark));
+            if (restartFlag) {
+                makeToast(getStringWithLocale(R.string.kca_toast_restart_at_kcanotify), Toast.LENGTH_LONG, ContextCompat.getColor(getApplicationContext(), R.color.colorPrimaryDark));
             } else if (!checkDataLoadTriggered()) {
                 if (!api_start2_loading_flag) {
-                    customToast.showToast(getStringWithLocale(R.string.kca_toast_get_data_at_settings), Toast.LENGTH_LONG, ContextCompat.getColor(getApplicationContext(), R.color.colorPrimaryDark));
-                    new retrieveApiStartData().execute("", "down", "");
+                    makeToast(getStringWithLocale(R.string.kca_toast_get_data_at_settings), Toast.LENGTH_LONG, ContextCompat.getColor(getApplicationContext(), R.color.colorPrimaryDark));
+                    //new retrieveApiStartData().execute("", "down", "");
                 }
             } else if (api_start2_loading_flag) {
-                setFrontViewNotifier(FRONT_NONE, 0, getStringWithLocale(R.string.kca_toast_loading_data));
+                makeToast(getStringWithLocale(R.string.kca_toast_loading_data), Toast.LENGTH_LONG, ContextCompat.getColor(getApplicationContext(), R.color.colorPrimaryDark));
             } else {
                 if (url.startsWith(API_PORT)) {
+                    KcaFleetViewService.setReadyFlag(true);
                     heavyDamagedMode = HD_NONE;
                     currentNodeInfo = "";
+                    KcaBattle.currentFleet = -1;
+                    KcaApiData.resetShipCountInBattle();
+                    KcaApiData.resetItemCountInBattle();
                     Log.e("KCA", "Port Handler Called");
                     if (jsonDataObj.has("api_data")) {
                         JsonObject reqPortApiData = jsonDataObj.getAsJsonObject("api_data");
@@ -623,20 +1027,40 @@ public class KcaService extends Service {
                             KcaBattle.cleanEscapeList();
                         }
 
-                        if (reqPortApiData.has("api_basic")) {
-                            processBasicInfo(reqPortApiData.getAsJsonObject("api_basic"));
-                        }
+
+
                         //Log.e("KCA", "Total Ships: " + String.valueOf(size));
                         if (reqPortApiData.has("api_deck_port")) {
-                            processFirstDeckInfo(currentPortDeckData);
-                            processExpeditionInfo(currentPortDeckData);
-                        }
-                        if (reqPortApiData.has("api_ndock")) {
-                            JsonArray nDockData = reqPortApiData.getAsJsonArray("api_ndock");
-                            processDockingInfo(nDockData);
+                            processExpeditionInfo();
+                            JsonArray portdeckdata = reqPortApiData.getAsJsonArray("api_deck_port");
+                            KcaMoraleInfo.setDeckCount(portdeckdata.size());
+                            for (int i = 0; i < portdeckdata.size(); i++) {
+                                boolean result = KcaMoraleInfo.setMoraleValue(i, deckInfoCalc.checkMinimumMorale(portdeckdata, i), isInBattle, false);
+                                processMoraleInfo(i, portdeckdata, result);
+                            }
+
+                            JsonArray akashi_flagship_deck = deckInfoCalc.checkAkashiFlagship(portdeckdata);
+                            boolean is_init_state = KcaAkashiRepairInfo.getAkashiTimerValue() < 0;
+                            boolean over_20min = KcaAkashiRepairInfo.getAkashiElapsedTimeInSecond() >= AKASHI_TIMER_20MIN;
+                            if (akashi_flagship_deck.size() > 0) {
+                                if (is_init_state || over_20min) {
+                                    KcaAkashiRepairInfo.setAkashiTimer();
+                                    processAkashiTimerInfo();
+                                    isAkashiTimerNotiWait = true;
+                                }
+                            } else {
+                                if (!is_init_state && over_20min) {
+                                    KcaAkashiRepairInfo.initAkashiTimer();
+                                    processAkashiTimerInfo();
+                                    isAkashiTimerNotiWait = false;
+                                }
+                            }
+                            KcaAkashiRepairInfo.setAkashiExist(akashi_flagship_deck.size() > 0);
+                            updateFleetView();
                         }
                     }
-                    setFrontViewNotifier(FRONT_NONE, 0, null);
+                    runTimer();
+                    updateFleetView();
                     isInBattle = false;
                 }
 
@@ -655,12 +1079,23 @@ public class KcaService extends Service {
                         }
                     }
                     KcaApiData.setEventMapDifficulty(mapno, rank);
+                    if (KcaMapHpPopupService.isActive()) {
+                        Intent qintent = new Intent(this, KcaMapHpPopupService.class);
+                        qintent.setAction(KcaMapHpPopupService.MAPHP_RESET_ACTION);
+                        startService(qintent);
+                    }
                 }
 
                 if (url.startsWith(API_GET_MEMBER_MAPINFO) || url.startsWith(API_GET_MEMBER_MISSION)) {
                     if (url.startsWith(API_GET_MEMBER_MAPINFO) && jsonDataObj.has("api_data")) {
                         JsonObject api_data = jsonDataObj.getAsJsonObject("api_data");
                         JsonArray api_map_info = api_data.getAsJsonArray("api_map_info");
+                        dbHelper.putValue(DB_KEY_APIMAPINFO, api_map_info.toString());
+                        if (KcaMapHpPopupService.isActive()) {
+                            Intent qintent = new Intent(getBaseContext(), KcaMapHpPopupService.class);
+                            qintent.setAction(KcaMapHpPopupService.MAPHP_SHOW_ACTION);
+                            startService(qintent);
+                        }
                         int eventMapCount = 0;
                         for (JsonElement map : api_map_info) {
                             JsonObject mapData = map.getAsJsonObject();
@@ -671,81 +1106,93 @@ public class KcaService extends Service {
                                     KcaApiData.setEventMapDifficulty(eventMapCount, eventData.get("api_selected_rank").getAsInt());
                             }
                         }
+
+                        if (api_data.has("api_air_base") && api_data.get("api_air_base").isJsonArray()) {
+                            JsonArray api_airbase_info = api_data.getAsJsonArray("api_air_base");
+                            dbHelper.putValue(DB_KEY_LABSIFNO, api_airbase_info.toString());
+                            updateAirbasePopupInfo();
+                        } else {
+                            JsonArray api_airbase_info = new JsonArray();
+                            dbHelper.putValue(DB_KEY_LABSIFNO, api_airbase_info.toString());
+                            updateAirbasePopupInfo();
+                        }
                     }
 
                     // Notification Part
                     String message = "";
                     boolean isHeavyDamagedFlag = false;
                     boolean isNotSuppliedFlag = false;
-
-                    for (int i = 0; i < currentPortDeckData.size(); i++) {
-                        if (url.startsWith(API_GET_MEMBER_MISSION) && i == 0) continue;
-                        if (KcaDeckInfo.checkNotSuppliedExist(currentPortDeckData, i)) {
-                            isNotSuppliedFlag = true;
-                            message = message.concat(String.format(getStringWithLocale(R.string.not_supplied), i + 1)).concat("\n");
-                        }
-                    }
-
-                    if (url.startsWith(API_GET_MEMBER_MAPINFO)) {
-                        int firstHeavyDamaged = KcaDeckInfo.checkHeavyDamageExist(currentPortDeckData, 0);
-                        int secondHeavyDamaged = 0;
-                        if (currentPortDeckData.size() >= 2) {
-                            secondHeavyDamaged = KcaDeckInfo.checkHeavyDamageExist(currentPortDeckData, 1);
+                    JsonArray portdeckdata = dbHelper.getJsonArrayValue(DB_KEY_DECKPORT);
+                    if (isCurrentPortDeckDataReady()) {
+                        for (int i = 0; i < portdeckdata.size(); i++) {
+                            if (url.startsWith(API_GET_MEMBER_MISSION) && i == 0) continue;
+                            if (deckInfoCalc.checkNotSuppliedExist(portdeckdata, i)) {
+                                isNotSuppliedFlag = true;
+                                message = message.concat(KcaUtils.format(getStringWithLocale(R.string.not_supplied), i + 1)).concat("\n");
+                            }
                         }
 
-                        int checkvalue = 0;
-                        if (isCombined) {
-                            checkvalue = Math.max(firstHeavyDamaged, secondHeavyDamaged);
-                        } else {
-                            checkvalue = firstHeavyDamaged;
-                        }
-
-                        switch (checkvalue) {
-                            case HD_DAMECON:
-                            case HD_DANGER:
-                                isHeavyDamagedFlag = true;
-                                if (checkvalue == HD_DANGER) {
-                                    message = message.concat(getStringWithLocale(R.string.heavy_damaged)).concat("\n");
-                                } else if (checkvalue == HD_DAMECON) {
-                                    message = message.concat(getStringWithLocale(R.string.heavy_damaged_damecon)).concat("\n");
-                                }
-                                break;
-                            default:
-                                break;
-                        }
-                    }
-
-                    if (message.length() > 0) {
-                        boolean hcondition = (isHeavyDamagedFlag && isHDVibrateEnabled());
-                        boolean ncondition = (isNotSuppliedFlag && isNSVibrateEnabled());
-                        if (hcondition || ncondition) {
-                            String soundKind = getStringPreferences(getApplicationContext(), PREF_KCA_NOTI_SOUND_KIND);
-                            if (soundKind.equals(getString(R.string.sound_kind_value_normal)) || soundKind.equals(getString(R.string.sound_kind_value_mixed))) {
-                                if (mAudioManager.getRingerMode() == AudioManager.RINGER_MODE_NORMAL) {
-                                    Uri notificationUri = Uri.parse(getStringPreferences(getApplicationContext(), PREF_KCA_NOTI_RINGTONE));
-                                    Log.e("KCA", getStringPreferences(getApplicationContext(), PREF_KCA_NOTI_RINGTONE));
-                                    KcaUtils.playNotificationSound(mediaPlayer, getApplicationContext(), notificationUri);
+                        if (url.startsWith(API_GET_MEMBER_MAPINFO)) {
+                            for (int i = 0; i < portdeckdata.size(); i++) {
+                                int checkvalue = deckInfoCalc.checkHeavyDamageExist(portdeckdata, i);
+                                switch (checkvalue) {
+                                    case HD_DAMECON:
+                                    case HD_DANGER:
+                                        isHeavyDamagedFlag = true;
+                                        if (checkvalue == HD_DANGER) {
+                                            message = message.concat(KcaUtils.format("[#%d] %s", i + 1, getStringWithLocale(R.string.heavy_damaged))).concat("\n");
+                                        } else if (checkvalue == HD_DAMECON) {
+                                            message = message.concat(KcaUtils.format("[#%d] %s", i + 1, getStringWithLocale(R.string.heavy_damaged_damecon))).concat("\n");
+                                        }
+                                        break;
+                                    default:
+                                        break;
                                 }
                             }
-                            vibrator.vibrate(1500);
                         }
 
-                        int toastColor;
-                        if (hcondition) toastColor = R.color.colorHeavyDmgStatePanel;
-                        else toastColor = R.color.colorWarningPanel;
-                        customToast.showToast(message.trim(), Toast.LENGTH_LONG, ContextCompat.getColor(getApplicationContext(), toastColor));
-                    }
+                        if (message.length() > 0) {
+                            boolean hcondition = (isHeavyDamagedFlag && isHDVibrateEnabled());
+                            boolean ncondition = (isNotSuppliedFlag && isNSVibrateEnabled());
+                            if (hcondition || ncondition) {
+                                String soundKind = getStringPreferences(getApplicationContext(), PREF_KCA_NOTI_SOUND_KIND);
+                                if (soundKind.equals(getString(R.string.sound_kind_value_normal)) || soundKind.equals(getString(R.string.sound_kind_value_mixed))) {
+                                    if (mAudioManager.getRingerMode() == AudioManager.RINGER_MODE_NORMAL) {
+                                        Uri notificationUri = KcaUtils.getContentUri(getApplicationContext(),
+                                                Uri.parse(getStringPreferences(getApplicationContext(), PREF_KCA_NOTI_RINGTONE)));
+                                        Log.e("KCA", getStringPreferences(getApplicationContext(), PREF_KCA_NOTI_RINGTONE));
+                                        KcaUtils.playNotificationSound(mediaPlayer, getApplicationContext(), notificationUri);
+                                    }
+                                }
+                                doVibrate(vibrator, 1000);
+                            }
 
-                    setFrontViewNotifier(FRONT_NONE, 0, null);
+                            int toastColor;
+                            if (hcondition) toastColor = R.color.colorHeavyDmgStatePanel;
+                            else toastColor = R.color.colorWarningPanel;
+                            makeToast(message.trim(), Toast.LENGTH_LONG, ContextCompat.getColor(getApplicationContext(), toastColor));
+                        }
+                    }
                 }
 
-                if (API_BATTLE_REQS.contains(url)) {
+                if (url.startsWith(API_GET_MEMBER_MAPINFO) || url.startsWith(API_GET_MEMBER_PRACTICE)) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+                            && !Settings.canDrawOverlays(getApplicationContext())) {
+                        // Can not draw overlays: pass
+                    } else {
+                        Intent qintent = new Intent(this, KcaBattleViewService.class);
+                        startService(qintent);
+                    }
+                }
+
+                if (API_BATTLE_REQS.contains(url) && isCurrentPortDeckDataReady()) {
                     if (jsonDataObj.has("api_data")) {
                         JsonObject battleApiData = jsonDataObj.getAsJsonObject("api_data");
                         if (url.equals(API_REQ_MAP_START) || url.equals(API_REQ_PRACTICE_BATTLE)) {
+                            JsonArray portdeckdata = dbHelper.getJsonArrayValue(DB_KEY_DECKPORT);
                             isInBattle = true;
 
-                            int deck_id = 0;
+                            int deck_id = -1;
                             String[] requestData = request.split("&");
                             for (int i = 0; i < requestData.length; i++) {
                                 String decodedData = URLDecoder.decode(requestData[i], "utf-8");
@@ -754,84 +1201,93 @@ public class KcaService extends Service {
                                     break;
                                 }
                             }
+                            if (deck_id != -1) {
+                                KcaBattle.currentFleet = deck_id;
+                            }
 
                             JsonObject api_data = new JsonObject();
                             JsonArray api_deck_data = new JsonArray();
                             JsonArray api_ship_data = new JsonArray();
                             int checkvalue = 0;
 
-                            if (isCombined) { // TODO: Combined Fleet for Event
-                                api_deck_data.add(currentPortDeckData.get(0));
-                                JsonArray firstShipInfo = currentPortDeckData.get(0).getAsJsonObject().getAsJsonArray("api_ship");
+                            if (deck_id == 0 && isCombined) {
+                                JsonObject first = portdeckdata.get(0).getAsJsonObject();
+                                JsonObject second = portdeckdata.get(1).getAsJsonObject();
+
+                                api_deck_data.add(first);
+                                JsonArray firstShipInfo = first.getAsJsonArray("api_ship");
                                 for (JsonElement e : firstShipInfo) {
                                     int ship_id = e.getAsInt();
                                     if (ship_id != -1)
                                         api_ship_data.add(KcaApiData.getUserShipDataById(ship_id, "all"));
                                 }
-                                api_deck_data.add(currentPortDeckData.get(1));
-                                JsonArray secondShipInfo = currentPortDeckData.get(1).getAsJsonObject().getAsJsonArray("api_ship");
+                                api_deck_data.add(second);
+                                JsonArray secondShipInfo = second.getAsJsonArray("api_ship");
                                 for (JsonElement e : secondShipInfo) {
                                     int ship_id = e.getAsInt();
                                     if (ship_id != -1)
                                         api_ship_data.add(KcaApiData.getUserShipDataById(ship_id, "all"));
                                 }
-                                KcaBattle.dameconflag = KcaDeckInfo.getDameconStatus(api_deck_data, 0);
-                                KcaBattle.dameconcbflag = KcaDeckInfo.getDameconStatus(api_deck_data, 1);
+                                KcaBattle.dameconflag = deckInfoCalc.getDameconStatus(api_deck_data, 0);
+                                KcaBattle.dameconcbflag = deckInfoCalc.getDameconStatus(api_deck_data, 1);
 
-                                int firstHeavyDamaged = KcaDeckInfo.checkHeavyDamageExist(currentPortDeckData, 0);
+                                int firstHeavyDamaged = deckInfoCalc.checkHeavyDamageExist(portdeckdata, 0);
                                 int secondHeavyDamaged = 0;
-                                if (currentPortDeckData.size() >= 2) {
-                                    secondHeavyDamaged = KcaDeckInfo.checkHeavyDamageExist(currentPortDeckData, 1);
+                                if (portdeckdata.size() >= 2) {
+                                    secondHeavyDamaged = deckInfoCalc.checkHeavyDamageExist(portdeckdata, 1);
                                 }
                                 checkvalue = Math.max(firstHeavyDamaged, secondHeavyDamaged);
                             } else {
-                                int fleetHeavyDamaged = KcaDeckInfo.checkHeavyDamageExist(currentPortDeckData, deck_id);
+                                JsonObject fleet = portdeckdata.get(deck_id).getAsJsonObject();
+                                int fleetHeavyDamaged = deckInfoCalc.checkHeavyDamageExist(portdeckdata, deck_id);
                                 checkvalue = fleetHeavyDamaged;
-                                api_deck_data.add(currentPortDeckData.get(deck_id));
-                                JsonArray firstShipInfo = currentPortDeckData.get(deck_id).getAsJsonObject().getAsJsonArray("api_ship");
+                                api_deck_data.add(fleet);
+                                JsonArray firstShipInfo = fleet.getAsJsonArray("api_ship");
                                 for (JsonElement e : firstShipInfo) {
                                     int ship_id = e.getAsInt();
                                     if (ship_id != -1)
                                         api_ship_data.add(KcaApiData.getUserShipDataById(ship_id, "all"));
                                 }
-                                KcaBattle.dameconflag = KcaDeckInfo.getDameconStatus(api_deck_data, 0);
+                                KcaBattle.dameconflag = deckInfoCalc.getDameconStatus(api_deck_data, 0);
                             }
                             api_data.add("api_deck_data", api_deck_data);
                             api_data.add("api_ship_data", api_ship_data);
                             KcaBattle.setDeckPortData(api_data);
                             KcaBattle.setStartHeavyDamageExist(checkvalue);
 
-                            if (getBooleanPreferences(getApplicationContext(), PREF_KCA_BATTLEVIEW_USE)) {
+                            if (isBattleViewEnabled()) {
                                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
                                         && !Settings.canDrawOverlays(getApplicationContext())) {
                                     // Can not draw overlays: pass
                                 } else {
-                                    Intent intent = new Intent(this, KcaViewButtonService.class)
-                                            .setAction(KcaViewButtonService.SHOW_BATTLE_INFO);
-                                    startService(intent);
+                                    startService(new Intent(this, KcaViewButtonService.class)
+                                            .setAction(KcaViewButtonService.ACTIVATE_BATTLEVIEW_ACTION));
+                                    startService(new Intent(this, KcaBattleViewService.class));
                                 }
                             }
                         }
-                        KcaBattle.processData(url, battleApiData);
-                    } else if (url.equals(API_REQ_COMBINED_GOBACKPORT)) {
-                        KcaBattle.processData(url, null);
+                        KcaBattle.processData(dbHelper, url, battleApiData);
+                    } else if (url.equals(API_REQ_COMBINED_GOBACKPORT) || url.equals(API_REQ_SORTIE_GOBACKPORT)) {
+                        KcaBattle.processData(dbHelper, url, null);
                     }
+                    updateFleetView();
                 }
 
-                if (url.startsWith(API_GET_MEMBER_SHIP_DECK)) {
+                if (url.startsWith(API_GET_MEMBER_SHIP_DECK) && isCurrentPortDeckDataReady()) {
                     if (jsonDataObj.has("api_data")) {
                         JsonObject api_data = jsonDataObj.getAsJsonObject("api_data");
                         JsonArray api_deck_data = (JsonArray) api_data.get("api_deck_data");
                         KcaApiData.updatePortDataOnBattle(api_data);
                         for (int i = 0; i < api_deck_data.size(); i++) {
                             if (i == 0) {
-                                KcaBattle.dameconflag = KcaDeckInfo.getDameconStatus(api_deck_data, 0);
+                                KcaBattle.dameconflag = deckInfoCalc.getDameconStatus(api_deck_data, 0);
                             } else if (i == 1) {
-                                KcaBattle.dameconcbflag = KcaDeckInfo.getDameconStatus(api_deck_data, 1);
+                                KcaBattle.dameconcbflag = deckInfoCalc.getDameconStatus(api_deck_data, 1);
                             }
                         }
                         KcaBattle.setDeckPortData(api_data);
-                        processFirstDeckInfo(currentPortDeckData);
+
+                        updateFleetView();
                     }
                 }
 
@@ -841,7 +1297,6 @@ public class KcaService extends Service {
                         JsonObject reqGetMemberDeckApiData = jsonDataObj.getAsJsonObject("api_data");
                         cancelExpeditionInfo(reqGetMemberDeckApiData);
                     }
-                    return;
                 }
 
                 if (url.startsWith(API_REQ_MEMBER_GET_PRACTICE_ENEMYINFO)) {
@@ -851,388 +1306,817 @@ public class KcaService extends Service {
                     }
                 }
 
-                if (url.startsWith(API_GET_MEMBER_SLOT_ITEM)) {
-                    if (jsonDataObj.has("api_data")) {
-                        JsonArray api_data = jsonDataObj.get("api_data").getAsJsonArray();
-                        KcaApiData.updateSlotItemData(api_data);
-                    }
-                }
-
-                if (url.startsWith(API_REQ_KOUSYOU_CREATETIEM)) {
-                    String[] requestData = request.split("&");
-                    int[] materials = {0, 0, 0, 0};
-
-                    int flagship = KcaDeckInfo.getKcShipList(currentPortDeckData, 0)[0];
-                    for (int i = 0; i < requestData.length; i++) {
-                        String decodedData = URLDecoder.decode(requestData[i], "utf-8");
-                        if (decodedData.startsWith("api_item1")) {
-                            materials[0] = Integer.valueOf(decodedData.replace("api_item1=", ""));
-                        }
-                        if (decodedData.startsWith("api_item2")) {
-                            materials[1] = Integer.valueOf(decodedData.replace("api_item2=", ""));
-                        }
-                        if (decodedData.startsWith("api_item3")) {
-                            materials[2] = Integer.valueOf(decodedData.replace("api_item3=", ""));
-                        }
-                        if (decodedData.startsWith("api_item4")) {
-                            materials[3] = Integer.valueOf(decodedData.replace("api_item4=", ""));
-                        }
-                    }
-
+                if (url.startsWith(API_REQ_HOKYU_CHARGE)) {
                     if (jsonDataObj.has("api_data")) {
                         JsonObject api_data = jsonDataObj.getAsJsonObject("api_data");
-                        int itemKcId = KcaApiData.addUserItem(api_data);
-                        if (isOpendbEnabled()) {
-                            KcaOpendbAPI.sendEquipDevData(flagship, materials[0], materials[1], materials[2], materials[3], itemKcId);
-                        }
+                        KcaApiData.updateSuppliedUserShip(api_data.getAsJsonArray("api_ship"));
                     }
                 }
 
-                if (url.startsWith(API_REQ_KOUSYOU_DESTROYITEM)) {
+                if (url.startsWith(API_GET_MEMBER_NDOCK)) {
+                    processDockingInfo();
+                    updateFleetView();
+                }
+
+                if (url.startsWith(API_REQ_NYUKYO_SPEEDCHAGNE)) {
+                    int ndock_id = -1;
                     String[] requestData = request.split("&");
                     for (int i = 0; i < requestData.length; i++) {
                         String decodedData = URLDecoder.decode(requestData[i], "utf-8");
-                        if (decodedData.startsWith("api_slotitem_ids")) {
-                            String itemlist = decodedData.replace("api_slotitem_ids=", "");
-                            KcaApiData.deleteUserItem(itemlist);
+                        if (decodedData.startsWith("api_ndock_id")) {
+                            ndock_id = Integer.valueOf(decodedData.replace("api_ndock_id=", "")) - 1;
                             break;
                         }
                     }
+                    if (ndock_id != -1) processDockingSpeedup(ndock_id);
+                    updateFleetView();
                 }
 
-                if (url.startsWith(API_REQ_KOUSYOU_CREATESHIP)) {
-                    String[] requestData = request.split("&");
-                    for (int i = 0; i < requestData.length; i++) {
-                        String decodedData = URLDecoder.decode(requestData[i], "utf-8");
-                        if (decodedData.startsWith("api_kdock_id=")) {
-                            checkKdockId = Integer.valueOf(decodedData.replace("api_kdock_id=", "")) - 1;
-                            break;
-                        }
-                    }
-                }
+                if (url.startsWith(API_REQ_NYUKYO_START)) {
+                    questTracker.updateIdCountTracker("503");
+                    updateQuestView();
 
-                if (url.startsWith(API_GET_MEMBER_KDOCK)) {
-                    Log.e("KCA", String.valueOf(checkKdockId));
-                    if (checkKdockId != -1 && jsonDataObj.has("api_data")) {
-                        JsonArray api_data = jsonDataObj.getAsJsonArray("api_data");
-                        JsonObject api_kdock = api_data.get(checkKdockId).getAsJsonObject();
-                        int flagship = KcaDeckInfo.getKcShipList(currentPortDeckData, 0)[0];
-                        int[] materials = {0, 0, 0, 0, 0};
-                        for (int i = 0; i < materials.length; i++) {
-                            materials[i] = api_kdock.get(String.format("api_item%d", i + 1)).getAsInt();
-                        }
-                        int created_ship_id = api_kdock.get("api_created_ship_id").getAsInt();
-                        if (isOpendbEnabled()) {
-                            KcaOpendbAPI.sendShipDevData(flagship, materials[0], materials[1], materials[2], materials[3], materials[4], created_ship_id);
-                        }
-                        checkKdockId = -1;
-                    }
-                }
-
-                if (url.startsWith(API_REQ_KOUSYOU_GETSHIP)) {
-                    if (jsonDataObj.has("api_data")) {
-                        JsonObject api_data = jsonDataObj.getAsJsonObject("api_data");
-                        KcaApiData.addUserShip(api_data);
-                    }
-                }
-
-                if (url.startsWith(API_REQ_KOUSYOU_DESTROYSHIP)) {
-                    String targetShip = "";
+                    int ship_id = -1;
+                    int highspeed = -1;
                     String[] requestData = request.split("&");
                     for (int i = 0; i < requestData.length; i++) {
                         String decodedData = URLDecoder.decode(requestData[i], "utf-8");
                         if (decodedData.startsWith("api_ship_id")) {
-                            targetShip = decodedData.replace("api_ship_id=", "");
-                            KcaApiData.deleteUserShip(targetShip);
-                            break;
+                            ship_id = Integer.valueOf(decodedData.replace("api_ship_id=", ""));
+                        } else if (decodedData.startsWith("api_highspeed")) {
+                            highspeed = Integer.valueOf(decodedData.replace("api_highspeed=", ""));
                         }
                     }
-                    for (int i = 0; i < currentPortDeckData.size(); i++) {
-                        JsonObject deckData = currentPortDeckData.get(i).getAsJsonObject();
-                        JsonArray deckShipData = deckData.get("api_ship").getAsJsonArray();
-                        for (int j = 0; j < deckShipData.size(); j++) {
-                            if (targetShip.equals(String.valueOf(deckShipData.get(j).getAsInt()))) {
-                                deckShipData.set(j, new JsonPrimitive(-1));
-                                deckData.add("api_ship", deckShipData);
-                                currentPortDeckData.set(i, deckData);
+                    KcaApiData.updateShipMorale(ship_id);
+                    JsonArray portdeckdata = dbHelper.getJsonArrayValue(DB_KEY_DECKPORT);
+                    int check_in_deck = deckInfoCalc.checkShipInDeck(portdeckdata, ship_id);
+                    if (check_in_deck != -1) {
+                        boolean result = setMoraleValue(check_in_deck, deckInfoCalc.checkMinimumMorale(portdeckdata, check_in_deck), false, false);
+                        processMoraleInfo(check_in_deck, portdeckdata, result);
+                    }
+                    if (highspeed > 0) KcaApiData.updateShipHpFull(ship_id);
+                    updateFleetView();
+                }
+
+                if (url.startsWith(API_REQ_AIR_CORPS_SETPLANE)) {
+                    int target_area_id = 0;
+                    int target_base_id = 0;
+                    String[] requestData = request.split("&");
+                    for (int i = 0; i < requestData.length; i++) {
+                        String decodedData = URLDecoder.decode(requestData[i], "utf-8");
+                        if (decodedData.startsWith("api_area_id")) {
+                            target_area_id = Integer.valueOf(decodedData.replace("api_area_id=", ""));
+                        } else if (decodedData.startsWith("api_base_id")) {
+                            target_base_id = Integer.valueOf(decodedData.replace("api_base_id=", ""));
+                        }
+                    }
+
+                    int new_distance = -1;
+                    JsonArray api_plane_info = new JsonArray();
+                    if (jsonDataObj.has("api_data")) {
+                        JsonObject api_data = jsonDataObj.getAsJsonObject("api_data");
+                        api_plane_info = api_data.getAsJsonArray("api_plane_info");
+                        new_distance = api_data.get("api_distance").getAsInt();
+                    }
+
+                    JsonArray airbase_data = dbHelper.getJsonArrayValue(DB_KEY_LABSIFNO);
+
+                    if (airbase_data != null) {
+                        for (int i = 0; i < airbase_data.size(); i++) {
+                            JsonObject airbase_item = airbase_data.get(i).getAsJsonObject();
+                            int area_id = airbase_item.get("api_area_id").getAsInt();
+                            int rid = airbase_item.get("api_rid").getAsInt();
+                            if (area_id == target_area_id && rid == target_base_id) {
+                                airbase_item.addProperty("api_distance", new_distance);
+                                JsonArray airbase_plane_info = airbase_item.getAsJsonArray("api_plane_info");
+                                for (int j = 0; j < api_plane_info.size(); j++) {
+                                    JsonObject plane_item = api_plane_info.get(j).getAsJsonObject();
+                                    int plane_item_id = plane_item.get("api_squadron_id").getAsInt();
+                                    for (int k = 0; k < airbase_plane_info.size(); k++) {
+                                        JsonObject target_plane_item = airbase_plane_info.get(k).getAsJsonObject();
+                                        if (target_plane_item.get("api_squadron_id").getAsInt() == plane_item_id) {
+                                            airbase_plane_info.set(k, plane_item);
+                                            break;
+                                        }
+                                    }
+                                }
                                 break;
                             }
                         }
+                        dbHelper.putValue(DB_KEY_LABSIFNO, airbase_data.toString());
+                        updateAirbasePopupInfo();
                     }
-                    processFirstDeckInfo(currentPortDeckData);
                 }
 
-                if (url.startsWith(API_REQ_HENSEI_CHANGE)) {
+                if (url.startsWith(API_REQ_AIR_CORPS_CHANGENAME)) {
+                    int target_area_id = 0;
+                    int target_base_id = 0;
+                    String new_name = "";
                     String[] requestData = request.split("&");
-                    int deckIdx = -1;
-                    int shipIdx = -1;
-                    int shipId = -3;
-
                     for (int i = 0; i < requestData.length; i++) {
                         String decodedData = URLDecoder.decode(requestData[i], "utf-8");
-                        if (decodedData.startsWith("api_ship_idx=")) {
-                            shipIdx = Integer.valueOf(decodedData.replace("api_ship_idx=", ""));
-                        } else if (decodedData.startsWith("api_ship_id=")) {
-                            shipId = Integer.valueOf(decodedData.replace("api_ship_id=", ""));
-                        } else if (decodedData.startsWith("api_id=")) {
-                            deckIdx = Integer.valueOf(decodedData.replace("api_id=", "")) - 1;
+                        if (decodedData.startsWith("api_area_id")) {
+                            target_area_id = Integer.valueOf(decodedData.replace("api_area_id=", ""));
+                        } else if (decodedData.startsWith("api_base_id")) {
+                            target_base_id = Integer.valueOf(decodedData.replace("api_base_id=", ""));
+                        } else if (decodedData.startsWith("api_name")) {
+                            new_name = decodedData.replace("api_name=", "");
                         }
                     }
-                    if (deckIdx != -1) {
-                        JsonObject targetDeckIdxData = currentPortDeckData.get(deckIdx).getAsJsonObject();
-                        JsonArray targetDeckIdxShipIdata = targetDeckIdxData.get("api_ship").getAsJsonArray();
 
-                        if (shipId == -2) {
-                            for (int i = 1; i < 6; i++) {
-                                targetDeckIdxShipIdata.set(i, new JsonPrimitive(-1));
+                    JsonArray airbase_data = dbHelper.getJsonArrayValue(DB_KEY_LABSIFNO);
+                    if (airbase_data != null) {
+                        for (int i = 0; i < airbase_data.size(); i++) {
+                            JsonObject airbase_item = airbase_data.get(i).getAsJsonObject();
+                            int area_id = airbase_item.get("api_area_id").getAsInt();
+                            int rid = airbase_item.get("api_rid").getAsInt();
+                            if (area_id == target_area_id && rid == target_base_id) {
+                                airbase_item.addProperty("api_name", new_name);
+                                break;
                             }
-                        } else if (shipId == -1) { // remove ship
-                            targetDeckIdxShipIdata.remove(shipIdx);
-                            targetDeckIdxShipIdata.add(new JsonPrimitive(-1));
-                        } else { // add ship
-                            int originalDeckIdx = -1;
-                            int originalShipIdx = -1;
-                            // check whether target ship is in deck
-                            for (int i = 0; i < currentPortDeckData.size(); i++) {
-                                JsonArray deckData = currentPortDeckData.get(i).getAsJsonObject().get("api_ship").getAsJsonArray();
-                                for (int j = 0; j < deckData.size(); j++) {
-                                    if (shipId == deckData.get(j).getAsInt()) {
-                                        originalDeckIdx = i;
-                                        originalShipIdx = j;
-                                        break;
+                        }
+                        dbHelper.putValue(DB_KEY_LABSIFNO, airbase_data.toString());
+                        updateAirbasePopupInfo();
+                    }
+                }
+
+                if (url.startsWith(API_REQ_AIR_CORPS_SETACTION)) {
+                    int target_area_id = 0;
+                    String target_base_id = "";
+                    String new_action_kind = "";
+                    String[] requestData = request.split("&");
+                    for (int i = 0; i < requestData.length; i++) {
+                        String decodedData = URLDecoder.decode(requestData[i], "utf-8");
+                        if (decodedData.startsWith("api_area_id")) {
+                            target_area_id = Integer.valueOf(decodedData.replace("api_area_id=", ""));
+                        } else if (decodedData.startsWith("api_base_id")) {
+                            target_base_id = decodedData.replace("api_base_id=", "");
+                        } else if (decodedData.startsWith("api_action_kind")) {
+                            new_action_kind = decodedData.replace("api_action_kind=", "");
+                        }
+                    }
+                    String[] target_base_list = target_base_id.split(",");
+                    String[] new_action_list = new_action_kind.split(",");
+
+                    JsonArray airbase_data = dbHelper.getJsonArrayValue(DB_KEY_LABSIFNO);
+                    if (airbase_data != null) {
+                        for (int i = 0; i < airbase_data.size(); i++) {
+                            JsonObject airbase_item = airbase_data.get(i).getAsJsonObject();
+                            int area_id = airbase_item.get("api_area_id").getAsInt();
+                            int rid = airbase_item.get("api_rid").getAsInt();
+                            for (int j = 0; j < target_base_list.length; j++) {
+                                int target_base = Integer.parseInt(target_base_list[j]);
+                                if (area_id == target_area_id && rid == target_base) {
+                                    airbase_item.addProperty("api_action_kind", Integer.parseInt(new_action_list[j]));
+                                    break;
+                                }
+                            }
+                        }
+                        dbHelper.putValue(DB_KEY_LABSIFNO, airbase_data.toString());
+                        updateAirbasePopupInfo();
+                    }
+                }
+
+                if (url.startsWith(API_REQ_AIR_CORPS_SUPPLY)) {
+                    int target_area_id = 0;
+                    int target_base_id = 0;
+                    String[] requestData = request.split("&");
+                    for (int i = 0; i < requestData.length; i++) {
+                        String decodedData = URLDecoder.decode(requestData[i], "utf-8");
+                        if (decodedData.startsWith("api_area_id")) {
+                            target_area_id = Integer.valueOf(decodedData.replace("api_area_id=", ""));
+                        } else if (decodedData.startsWith("api_base_id")) {
+                            target_base_id = Integer.valueOf(decodedData.replace("api_base_id=", ""));
+                        }
+                    }
+
+                    JsonArray api_plane_info = new JsonArray();
+                    if (jsonDataObj.has("api_data")) {
+                        JsonObject api_data = jsonDataObj.getAsJsonObject("api_data");
+                        api_plane_info = api_data.getAsJsonArray("api_plane_info");
+                    }
+
+                    JsonArray airbase_data = dbHelper.getJsonArrayValue(DB_KEY_LABSIFNO);
+                    if (airbase_data != null) {
+                        for (int i = 0; i < airbase_data.size(); i++) {
+                            JsonObject airbase_item = airbase_data.get(i).getAsJsonObject();
+                            int area_id = airbase_item.get("api_area_id").getAsInt();
+                            int rid = airbase_item.get("api_rid").getAsInt();
+                            if (area_id == target_area_id && rid == target_base_id) {
+                                JsonArray airbase_plane_info = airbase_item.getAsJsonArray("api_plane_info");
+                                for (int j = 0; j < api_plane_info.size(); j++) {
+                                    JsonObject plane_item = api_plane_info.get(j).getAsJsonObject();
+                                    int plane_item_id = plane_item.get("api_squadron_id").getAsInt();
+                                    for (int k = 0; k < airbase_plane_info.size(); k++) {
+                                        JsonObject target_plane_item = airbase_plane_info.get(k).getAsJsonObject();
+                                        if (target_plane_item.get("api_squadron_id").getAsInt() == plane_item_id) {
+                                            airbase_plane_info.set(k, plane_item);
+                                            break;
+                                        }
+                                    }
+                                }
+                                break;
+                            }
+                        }
+                        dbHelper.putValue(DB_KEY_LABSIFNO, airbase_data.toString());
+                        updateAirbasePopupInfo();
+                    }
+                }
+
+                if (url.startsWith(API_REQ_AIR_CORPS_EXPANDBASE)) {
+                    JsonObject api_base_info = new JsonObject();
+                    if (jsonDataObj.has("api_data")) {
+                        api_base_info = jsonDataObj.getAsJsonObject("api_data");
+                    }
+
+                    JsonArray airbase_data = dbHelper.getJsonArrayValue(DB_KEY_LABSIFNO);
+                    if (airbase_data != null) {
+                        airbase_data.add(api_base_info);
+                        dbHelper.putValue(DB_KEY_LABSIFNO, airbase_data.toString());
+                        updateAirbasePopupInfo();
+                    }
+                }
+
+                if (isCurrentPortDeckDataReady()) {
+                    if (url.startsWith(API_REQ_KOUSYOU_CREATEITEM)) {
+                        String[] requestData = request.split("&");
+                        int[] materials = {0, 0, 0, 0};
+                        JsonArray portdeckdata = dbHelper.getJsonArrayValue(DB_KEY_DECKPORT);
+                        int flagship = deckInfoCalc.getKcShipList(portdeckdata, 0)[0];
+                        for (int i = 0; i < requestData.length; i++) {
+                            String decodedData = URLDecoder.decode(requestData[i], "utf-8");
+                            if (decodedData.startsWith("api_item1")) {
+                                materials[0] = Integer.valueOf(decodedData.replace("api_item1=", ""));
+                            }
+                            if (decodedData.startsWith("api_item2")) {
+                                materials[1] = Integer.valueOf(decodedData.replace("api_item2=", ""));
+                            }
+                            if (decodedData.startsWith("api_item3")) {
+                                materials[2] = Integer.valueOf(decodedData.replace("api_item3=", ""));
+                            }
+                            if (decodedData.startsWith("api_item4")) {
+                                materials[3] = Integer.valueOf(decodedData.replace("api_item4=", ""));
+                            }
+                        }
+
+                        if (jsonDataObj.has("api_data")) {
+                            JsonObject api_data = jsonDataObj.getAsJsonObject("api_data");
+                            boolean createFlag = api_data.get("api_create_flag").getAsInt() == 1;
+                            int itemKcId = KcaApiData.updateSlotItemData(api_data);
+                            int itemFailKcId = -1;
+                            if (api_data.has("api_fdata")) {
+                                String[] fdata = api_data.get("api_fdata").getAsString().split(",");
+                                itemFailKcId = Integer.parseInt(fdata[1]);
+                            }
+
+                            if (isOpenDBEnabled()) KcaOpenDBAPI.sendEquipDevData(flagship, materials[0], materials[1], materials[2], materials[3], itemKcId);
+                            if (isPoiDBEnabled()) KcaPoiDBAPI.sendEquipDevData(Arrays.toString(materials), flagship, createFlag ? itemKcId : itemFailKcId, getAdmiralLevel(), createFlag);
+
+                            questTracker.updateIdCountTracker("605");
+                            questTracker.updateIdCountTracker("607");
+                            updateQuestView();
+
+                            JsonArray material_data = api_data.getAsJsonArray("api_material");
+                            recordResourceLog(material_data, false);
+
+                            String itemname = "";
+                            int itemtype = 0;
+                            String itemcount = "";
+
+                            if (createFlag) {
+                                JsonObject itemData = KcaApiData.getKcItemStatusById(itemKcId, "name,type");
+                                itemname = itemData.get("name").getAsString();
+                                itemtype = itemData.get("type").getAsJsonArray().get(3).getAsInt();
+                                itemcount = KcaUtils.format("(%d)", KcaApiData.getItemCountByKcId(itemKcId));
+                            } else {
+                                itemname = "item_fail";
+                                itemtype = 999;
+                            }
+
+                            JsonObject shipData = KcaApiData.getKcShipDataById(flagship, "name");
+                            String shipname = shipData.get("name").getAsString();
+
+                            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+                            String timetext = dateFormat.format(new Date());
+
+                            JsonObject equipdevdata = new JsonObject();
+                            equipdevdata.addProperty("flagship", shipname);
+                            equipdevdata.addProperty("name", itemname);
+                            equipdevdata.addProperty("type", itemtype);
+                            equipdevdata.addProperty("count", itemcount);
+                            equipdevdata.addProperty("time", timetext);
+
+                            dbHelper.putValue(DB_KEY_LATESTDEV, equipdevdata.toString());
+
+                            if (KcaDevelopPopupService.isActive()) {
+                                Intent qintent = new Intent(getBaseContext(), KcaDevelopPopupService.class);
+                                qintent.setAction(KcaDevelopPopupService.DEV_DATA_ACTION);
+                                qintent.putExtra("data", equipdevdata.toString());
+                                startService(qintent);
+                            }
+                        }
+                    }
+
+                    if (url.startsWith(API_REQ_KOUSYOU_DESTROYITEM)) {
+                        String[] requestData = request.split("&");
+                        for (int i = 0; i < requestData.length; i++) {
+                            String decodedData = URLDecoder.decode(requestData[i], "utf-8");
+                            if (decodedData.startsWith("api_slotitem_ids")) {
+                                String itemlist = decodedData.replace("api_slotitem_ids=", "");
+                                String[] itemlist_array = itemlist.split(",");
+                                for (String item : itemlist_array) {
+                                    JsonObject status = getUserItemStatusById(Integer.parseInt(item), "lv,alv", "id,type");
+                                    if (status != null && status.has("id")) {
+                                        int item_id = status.get("id").getAsInt();
+                                        switch (item_id) {
+                                            case 19: // Type 96 Fighter
+                                                questTracker.updateIdCountTracker("678", 0);
+                                            case 20: // Type 0 Model 21
+                                                questTracker.updateIdCountTracker("678", 1);
+                                            default:
+                                                break;
+                                        }
+                                    }
+                                    if (status != null && status.has("type")) {
+                                        switch (status.getAsJsonArray("type").get(2).getAsInt()) {
+                                            case T2_GUN_SMALL:
+                                                questTracker.updateIdCountTracker("673");
+                                                break;
+                                            case T2_GUN_MEDIUM:
+                                                questTracker.updateIdCountTracker("676", 0);
+                                                break;
+                                            case T2_SUB_GUN:
+                                                questTracker.updateIdCountTracker("676", 1);
+                                                break;
+                                            case T2_TORPEDO:
+                                                questTracker.updateIdCountTracker("677", 2);
+                                                break;
+                                            case T2_FIGHTER:
+                                                questTracker.updateIdCountTracker("675", 0);
+                                                break;
+                                            case T2_SEA_SCOUT:
+                                                questTracker.updateIdCountTracker("677", 1);
+                                                break;
+                                            case T2_MACHINE_GUN:
+                                                questTracker.updateIdCountTracker("638");
+                                                questTracker.updateIdCountTracker("674");
+                                                questTracker.updateIdCountTracker("675", 1);
+                                                questTracker.updateIdCountTracker("680", 0);
+                                                break;
+                                            case T2_RADAR_SMALL:
+                                            case T2_RADAR_LARGE:
+                                            case T2_RADER_LARGE_II:
+                                                questTracker.updateIdCountTracker("680", 1);
+                                                break;
+                                            case T2_GUN_LARGE:
+                                            case T2_GUN_LARGE_II:
+                                                questTracker.updateIdCountTracker("663");
+                                                questTracker.updateIdCountTracker("677", 0);
+                                                break;
+                                            case T2_DRUM_CAN:
+                                                questTracker.updateIdCountTracker("676", 2);
+                                                break;
+                                            default:
+                                                break;
+                                        }
+                                    }
+                                }
+                                KcaApiData.removeSlotItemData(itemlist);
+                                break;
+                            }
+                        }
+                        questTracker.updateIdCountTracker("613");
+                        updateQuestView();
+                        updateFleetView();
+                    }
+
+                    if (url.equals(API_REQ_KOUSYOU_CREATESHIP)) {
+                        String[] requestData = request.split("&");
+                        for (int i = 0; i < requestData.length; i++) {
+                            String decodedData = URLDecoder.decode(requestData[i], "utf-8");
+                            if (decodedData.startsWith("api_kdock_id=")) {
+                                checkKdockId = Integer.valueOf(decodedData.replace("api_kdock_id=", "")) - 1;
+                            } else if (decodedData.startsWith("api_highspeed=")) {
+                                checkHighSpeed = Integer.valueOf(decodedData.replace("api_highspeed=", ""));
+                            } else if (decodedData.startsWith("api_large_flag=")) {
+                                checkLargeFlag = Integer.valueOf(decodedData.replace("api_large_flag=", ""));
+                            }
+                        }
+                        questTracker.updateIdCountTracker("606");
+                        questTracker.updateIdCountTracker("608");
+                        updateQuestView();
+                    }
+
+                    if (url.equals(API_REQ_KOUSYOU_CREATESHIP_SPEEDCHANGE)) {
+                        int kdockid = -1;
+                        String[] requestData = request.split("&");
+                        for (int i = 0; i < requestData.length; i++) {
+                            String decodedData = URLDecoder.decode(requestData[i], "utf-8");
+                            if (decodedData.startsWith("api_kdock_id=")) {
+                                kdockid = Integer.valueOf(decodedData.replace("api_kdock_id=", "")) - 1;
+                                break;
+                            }
+                        }
+                        Log.e("KCA-S", "" + kdockid);
+                        if (kdockid > -1) {
+                            JsonArray kdata = dbHelper.getJsonArrayValue(DB_KEY_KDOCKDATA);
+                            if (kdata != null) {
+                                JsonObject item = kdata.get(kdockid).getAsJsonObject();
+                                item.addProperty("api_complete_time", 0);
+                                kdata.set(kdockid, item);
+                            }
+                            dbHelper.putValue(DB_KEY_KDOCKDATA, kdata.toString());
+                        }
+                    }
+
+                    if (url.startsWith(API_REQ_KOUSYOU_GETSHIP)) {
+                        if (jsonDataObj.has("api_data")) {
+                            JsonObject api_data = jsonDataObj.getAsJsonObject("api_data");
+                            KcaApiData.addUserShip(api_data);
+                            JsonArray api_kdock = api_data.getAsJsonArray("api_kdock");
+                            dbHelper.putValue(DB_KEY_KDOCKDATA, api_kdock.toString());
+                        }
+                    }
+
+                    if (url.startsWith(API_REQ_KAISOU_SLOTSET)) {
+                        kaisouProcessFlag = true;
+                    }
+
+                    if (url.startsWith(API_REQ_KAISOU_SLOTSET_EX)) {
+                        kaisouProcessFlag = true;
+                    }
+
+                    if (url.startsWith(API_REQ_KAISOU_UNSLOTSET_ALL)) {
+                        kaisouProcessFlag = true;
+                    }
+
+                    if (url.startsWith(API_GET_MEMBER_KDOCK)) {
+                        Log.e("KCA", String.valueOf(checkKdockId));
+                        if (jsonDataObj.has("api_data")) {
+                            JsonArray api_data = jsonDataObj.getAsJsonArray("api_data");
+                            dbHelper.putValue(DB_KEY_KDOCKDATA, api_data.toString());
+                            if (checkKdockId != -1) {
+                                JsonObject api_kdock_item = api_data.get(checkKdockId).getAsJsonObject();
+                                JsonArray portdeckdata = dbHelper.getJsonArrayValue(DB_KEY_DECKPORT);
+                                int flagship = deckInfoCalc.getKcShipList(portdeckdata, 0)[0];
+                                int[] materials = {0, 0, 0, 0, 0};
+                                for (int i = 0; i < materials.length; i++) {
+                                    materials[i] = api_kdock_item.get(KcaUtils.format("api_item%d", i + 1)).getAsInt();
+                                }
+                                int created_ship_id = api_kdock_item.get("api_created_ship_id").getAsInt();
+                                if (isOpenDBEnabled()) KcaOpenDBAPI.sendShipDevData(flagship, materials[0], materials[1], materials[2], materials[3], materials[4], created_ship_id);
+                                if (isPoiDBEnabled()) KcaPoiDBAPI.sendShipDevData(Arrays.toString(materials), checkKdockId, flagship, created_ship_id, checkHighSpeed, getAdmiralLevel(), checkLargeFlag);
+
+                                checkKdockId = -1;
+                                checkLargeFlag = -1;
+                                checkHighSpeed = -1;
+                            }
+                        }
+                    }
+
+                    if (url.startsWith(API_REQ_KOUSYOU_DESTROYSHIP)) {
+                        String targetShip = "";
+                        int slotDestFlag = 0;
+                        String[] requestData = request.split("&");
+                        for (int i = 0; i < requestData.length; i++) {
+                            String decodedData = URLDecoder.decode(requestData[i], "utf-8");
+                            if (decodedData.startsWith("api_ship_id")) {
+                                targetShip = decodedData.replace("api_ship_id=", "");
+                            } else if (decodedData.startsWith("api_slot_dest_flag")) {
+                                slotDestFlag = Integer.parseInt(decodedData.replace("api_slot_dest_flag=", ""));
+                            }
+                        }
+                        KcaApiData.deleteUserShip(targetShip, slotDestFlag);
+                        String[] targetShipList = targetShip.split(",");
+
+                        JsonArray portdeckdata = dbHelper.getJsonArrayValue(DB_KEY_DECKPORT);
+                        for (int i = 0; i < portdeckdata.size(); i++) {
+                            JsonObject deckData = portdeckdata.get(i).getAsJsonObject();
+                            JsonArray deckShipData = deckData.get("api_ship").getAsJsonArray();
+                            for (int j = 0; j < deckShipData.size(); j++) {
+                                for (int k = 0; k < targetShipList.length; k++) {
+                                    if (targetShipList[k].equals(String.valueOf(deckShipData.get(j).getAsInt()))) {
+                                        deckShipData.set(j, new JsonPrimitive(-1));
+                                        deckData.add("api_ship", deckShipData);
+                                        portdeckdata.set(i, deckData);
                                     }
                                 }
                             }
-                            if (originalDeckIdx != -1) { // if in deck
-                                JsonObject sourceDeckIdxData = currentPortDeckData.get(originalDeckIdx).getAsJsonObject();
-                                JsonArray sourceDeckIdxShipIdata = sourceDeckIdxData.get("api_ship").getAsJsonArray();
-                                JsonElement replacement = targetDeckIdxShipIdata.get(shipIdx);
-                                if (replacement.getAsInt() != -1) {
-                                    sourceDeckIdxShipIdata.set(originalShipIdx, replacement);
-                                } else {
-                                    sourceDeckIdxShipIdata.remove(originalShipIdx);
-                                    sourceDeckIdxShipIdata.add(new JsonPrimitive(-1));
-                                    sourceDeckIdxData.add("api_ship", sourceDeckIdxShipIdata);
-                                    currentPortDeckData.set(originalDeckIdx, sourceDeckIdxData);
+                        }
+                        dbHelper.putValue(DB_KEY_DECKPORT, portdeckdata.toString());
+                        for (int i = 0; i < targetShipList.length; i++) {
+                            questTracker.updateIdCountTracker("609");
+                        }
+                        updateQuestView();
+                        updateFleetView();
+                    }
+
+                    if (url.startsWith(API_REQ_HENSEI_CHANGE)) {
+                        String[] requestData = request.split("&");
+                        int deckIdx = -1;
+                        int shipIdx = -1;
+                        int shipId = -3;
+
+                        int originalDeckIdx = -1;
+                        int originalShipIdx = -1;
+
+                        boolean in_change = false;
+                        for (int i = 0; i < requestData.length; i++) {
+                            String decodedData = URLDecoder.decode(requestData[i], "utf-8");
+                            if (decodedData.startsWith("api_ship_idx=")) {
+                                shipIdx = Integer.valueOf(decodedData.replace("api_ship_idx=", ""));
+                            } else if (decodedData.startsWith("api_ship_id=")) {
+                                shipId = Integer.valueOf(decodedData.replace("api_ship_id=", ""));
+                            } else if (decodedData.startsWith("api_id=")) {
+                                deckIdx = Integer.valueOf(decodedData.replace("api_id=", "")) - 1;
+                            }
+                        }
+                        if (deckIdx != -1) {
+                            JsonArray portdeckdata = dbHelper.getJsonArrayValue(DB_KEY_DECKPORT);
+                            JsonObject targetDeckIdxData = portdeckdata.get(deckIdx).getAsJsonObject();
+                            JsonArray targetDeckIdxShipIdata = targetDeckIdxData.get("api_ship").getAsJsonArray();
+
+                            if (shipId == -2) {
+                                in_change = true;
+                                for (int i = 1; i < targetDeckIdxShipIdata.size(); i++) {
+                                    targetDeckIdxShipIdata.set(i, new JsonPrimitive(-1));
+                                }
+                            } else if (shipId == -1) { // remove ship
+                                in_change = true;
+                                targetDeckIdxShipIdata.remove(shipIdx);
+                                targetDeckIdxShipIdata.add(new JsonPrimitive(-1));
+                            } else { // add ship
+                                // check whether target ship is in deck
+                                for (int i = 0; i < portdeckdata.size(); i++) {
+                                    JsonArray deckData = portdeckdata.get(i).getAsJsonObject().get("api_ship").getAsJsonArray();
+                                    for (int j = 0; j < deckData.size(); j++) {
+                                        if (shipId == deckData.get(j).getAsInt()) {
+                                            originalDeckIdx = i;
+                                            originalShipIdx = j;
+                                            break;
+                                        }
+                                    }
+                                }
+                                if (originalDeckIdx != -1) { // if in deck
+                                    JsonObject sourceDeckIdxData = portdeckdata.get(originalDeckIdx).getAsJsonObject();
+                                    JsonArray sourceDeckIdxShipIdata = sourceDeckIdxData.get("api_ship").getAsJsonArray();
+                                    JsonElement replacement = targetDeckIdxShipIdata.get(shipIdx);
+                                    if (replacement.getAsInt() != -1) {
+                                        sourceDeckIdxShipIdata.set(originalShipIdx, replacement);
+                                    } else {
+                                        sourceDeckIdxShipIdata.remove(originalShipIdx);
+                                        sourceDeckIdxShipIdata.add(new JsonPrimitive(-1));
+                                        sourceDeckIdxData.add("api_ship", sourceDeckIdxShipIdata);
+                                        portdeckdata.set(originalDeckIdx, sourceDeckIdxData);
+                                    }
+                                }
+                                targetDeckIdxShipIdata.set(shipIdx, new JsonPrimitive(shipId)); // replace
+                            }
+                            targetDeckIdxData.add("api_ship", targetDeckIdxShipIdata);
+                            portdeckdata.set(deckIdx, targetDeckIdxData);
+                            dbHelper.putValue(DB_KEY_DECKPORT, portdeckdata.toString());
+
+                            for (int i = 0; i < portdeckdata.size(); i++) {
+                                boolean result = setMoraleValue(i, deckInfoCalc.checkMinimumMorale(portdeckdata, i), false, in_change);
+                                processMoraleInfo(i, portdeckdata, result);
+                            }
+                            JsonArray akashi_flagship_deck = deckInfoCalc.checkAkashiFlagship(portdeckdata);
+                            boolean akashi_nochange_flag = true;
+                            for (int i = 0; i < akashi_flagship_deck.size(); i++) {
+                                int deckid = akashi_flagship_deck.get(i).getAsInt();
+                                if (deckid == deckIdx || deckid == originalDeckIdx) {
+                                    akashi_nochange_flag = false;
+                                    break;
                                 }
                             }
-                            targetDeckIdxShipIdata.set(shipIdx, new JsonPrimitive(shipId)); // replace
-                        }
-                        targetDeckIdxData.add("api_ship", targetDeckIdxShipIdata);
-                        currentPortDeckData.set(deckIdx, targetDeckIdxData);
-                    }
-                    processFirstDeckInfo(currentPortDeckData);
-                }
-
-                if (url.startsWith(API_REQ_HENSEI_PRESET)) {
-                    String[] requestData = request.split("&");
-                    int deckIdx = -1;
-                    for (int i = 0; i < requestData.length; i++) {
-                        String decodedData = URLDecoder.decode(requestData[i], "utf-8");
-                        if (decodedData.startsWith("api_deck_id=")) {
-                            deckIdx = Integer.valueOf(decodedData.replace("api_deck_id=", "")) - 1;
-                            break;
-                        }
-                    }
-                    if (deckIdx != -1) {
-                        if (jsonDataObj.has("api_data")) {
-                            JsonObject api_data = jsonDataObj.getAsJsonObject("api_data");
-                            currentPortDeckData.set(deckIdx, api_data);
-                        }
-                    }
-                    processFirstDeckInfo(currentPortDeckData);
-                }
-
-                if (url.startsWith(API_REQ_HENSEI_COMBINED)) {
-                    if (jsonDataObj.has("api_data")) {
-                        JsonObject api_data = jsonDataObj.getAsJsonObject("api_data");
-                        int api_combined = api_data.get("api_combined").getAsInt();
-                        isCombined = (api_combined > 0);
-                        KcaBattle.isCombined = api_combined > 0;
-                    }
-                    Log.e("KCA", "Combined: " + String.valueOf(isCombined));
-                    processFirstDeckInfo(currentPortDeckData);
-                }
-
-                if (url.startsWith(API_GET_MEMBER_SHIP3)) {
-                    String[] requestData = request.split("&");
-                    int userShipId = -1;
-                    for (int i = 0; i < requestData.length; i++) {
-                        String decodedData = URLDecoder.decode(requestData[i], "utf-8");
-                        if (decodedData.startsWith("api_shipid=")) {
-                            userShipId = Integer.valueOf(decodedData.replace("api_shipid=", ""));
-                            break;
-                        }
-                    }
-                    if (userShipId != -1) {
-                        if (jsonDataObj.has("api_data")) {
-                            JsonObject api_data = jsonDataObj.getAsJsonObject("api_data");
-                            currentPortDeckData = api_data.get("api_deck_data").getAsJsonArray();
-                            KcaApiData.updateUserShip(api_data.get("api_ship_data").getAsJsonArray().get(0).getAsJsonObject());
-                        }
-                    }
-                    if (kaisouProcessFlag) {
-                        processFirstDeckInfo(currentPortDeckData);
-                        toastInfo();
-                        kaisouProcessFlag = false;
-                    }
-                }
-
-                if (url.startsWith(API_REQ_KAISOU_SLOTSET)) {
-                    kaisouProcessFlag = true;
-                }
-
-                if (url.startsWith(API_REQ_KAISOU_SLOTSET_EX)) {
-                    kaisouProcessFlag = true;
-                }
-
-                if (url.startsWith(API_REQ_KAISOU_UNSLOTSET_ALL)) {
-                    kaisouProcessFlag = true;
-                }
-
-                if (url.startsWith(API_REQ_KAISOU_SLOT_EXCHANGE)) {
-                    String[] requestData = request.split("&");
-                    int userShipId = -1;
-                    for (int i = 0; i < requestData.length; i++) {
-                        String decodedData = URLDecoder.decode(requestData[i], "utf-8");
-                        if (decodedData.startsWith("api_id=")) {
-                            userShipId = Integer.valueOf(decodedData.replace("api_id=", ""));
-                            break;
-                        }
-                    }
-                    if (userShipId != -1 && jsonDataObj.has("api_data")) {
-                        JsonObject api_data = jsonDataObj.getAsJsonObject("api_data");
-                        KcaApiData.updateUserShipSlot(userShipId, api_data);
-                    }
-                    processFirstDeckInfo(currentPortDeckData);
-                    toastInfo();
-                }
-
-                if (url.startsWith(API_REQ_KAISOU_SLOT_DEPRIVE)) {
-                    if (jsonDataObj.has("api_data")) {
-                        JsonObject api_data = jsonDataObj.getAsJsonObject("api_data");
-                        JsonObject api_ship_data = api_data.get("api_ship_data").getAsJsonObject();
-                        KcaApiData.updateUserShip(api_ship_data.get("api_set_ship").getAsJsonObject());
-                        KcaApiData.updateUserShip(api_ship_data.get("api_unset_ship").getAsJsonObject());
-                    }
-                    processFirstDeckInfo(currentPortDeckData);
-                    toastInfo();
-                }
-
-                if (url.startsWith(API_REQ_KAISOU_POWERUP)) {
-                    String[] requestData = request.split("&");
-                    int targetId = -1;
-                    String itemIds = "";
-                    for (int i = 0; i < requestData.length; i++) {
-                        String decodedData = URLDecoder.decode(requestData[i], "utf-8");
-                        if (decodedData.startsWith("api_id=")) {
-                            targetId = Integer.valueOf(decodedData.replace("api_id=", ""));
-                        }
-                        if (decodedData.startsWith("api_id_items=")) {
-                            itemIds = decodedData.replace("api_id_items=", "");
-                        }
-                    }
-                    if (jsonDataObj.has("api_data")) {
-                        JsonObject api_data = jsonDataObj.getAsJsonObject("api_data");
-                        currentPortDeckData = api_data.getAsJsonArray("api_deck");
-                        updateUserShip(api_data.getAsJsonObject("api_ship"));
-                        KcaApiData.deleteUserShip(itemIds);
-                    }
-                    processFirstDeckInfo(currentPortDeckData);
-                }
-
-                if (url.equals(API_REQ_KOUSYOU_REMOEL_SLOT)) {
-                    int[] kcShipData = KcaDeckInfo.getKcShipList(currentPortDeckData, 0);
-                    int flagship = kcShipData[0];
-                    int assistant = kcShipData[1];
-
-                    String[] requestData = request.split("&");
-                    int certainFlag = 0;
-                    int itemId = 0;
-                    for (int i = 0; i < requestData.length; i++) {
-                        String decodedData = URLDecoder.decode(requestData[i], "utf-8");
-                        if (decodedData.startsWith("api_certain_flag=")) {
-                            certainFlag = Integer.valueOf(decodedData.replace("api_certain_flag=", ""));
-                        }
-                        if (decodedData.startsWith("api_slot_id=")) {
-                            itemId = Integer.valueOf(decodedData.replace("api_slot_id=", ""));
-                        }
-                    }
-
-                    JsonObject itemData = KcaApiData.getUserItemStatusById(itemId, "slotitem_id,level", "");
-                    int itemKcId = itemData.get("slotitem_id").getAsInt();
-                    int level = itemData.get("level").getAsInt();
-                    int api_remodel_flag = 0;
-                    if (jsonDataObj.has("api_data")) {
-                        JsonObject api_data = jsonDataObj.getAsJsonObject("api_data");
-                        api_remodel_flag = api_data.get("api_remodel_flag").getAsInt();
-                        if (certainFlag == 1 || api_remodel_flag == 1) {
-                            JsonObject api_after_slot = api_data.get("api_after_slot").getAsJsonObject();
-                            JsonArray api_slot_item = new JsonArray();
-                            api_slot_item.add(api_after_slot);
-                            KcaApiData.updateSlotItemData(api_slot_item);
-                        }
-                        JsonElement use_slot_id = api_data.get("api_use_slot_id");
-                        List<String> use_slot_id_list = new ArrayList<String>();
-                        if (use_slot_id != null) {
-                            for (JsonElement id : use_slot_id.getAsJsonArray()) {
-                                use_slot_id_list.add(id.getAsString());
+                            KcaAkashiRepairInfo.setAkashiExist(akashi_flagship_deck.size() > 0);
+                            if (!akashi_nochange_flag) {
+                                KcaAkashiRepairInfo.setAkashiTimer();
+                                processAkashiTimerInfo();
+                                isAkashiTimerNotiWait = true;
                             }
-                            KcaApiData.deleteUserItem(joinStr(use_slot_id_list, ","));
+                        }
+                        updateFleetView();
+                    }
+
+                    if (url.startsWith(API_REQ_HENSEI_PRESET) && isCurrentPortDeckDataReady()) {
+                        String[] requestData = request.split("&");
+                        int deckIdx = -1;
+                        for (int i = 0; i < requestData.length; i++) {
+                            String decodedData = URLDecoder.decode(requestData[i], "utf-8");
+                            if (decodedData.startsWith("api_deck_id=")) {
+                                deckIdx = Integer.valueOf(decodedData.replace("api_deck_id=", "")) - 1;
+                                break;
+                            }
+                        }
+                        if (deckIdx != -1) {
+                            if (jsonDataObj.has("api_data")) {
+                                boolean is_same = true;
+                                JsonArray portdeckdata = dbHelper.getJsonArrayValue(DB_KEY_DECKPORT);
+                                JsonArray before_ship_list = portdeckdata.get(deckIdx).getAsJsonObject().getAsJsonArray("api_ship");
+
+                                JsonObject api_data = jsonDataObj.getAsJsonObject("api_data");
+                                JsonArray after_ship_list = api_data.getAsJsonArray("api_ship");
+                                for (int i = 0; i < after_ship_list.size(); i++) {
+                                    if (!before_ship_list.contains(after_ship_list.get(i))) {
+                                        is_same = false;
+                                        break;
+                                    }
+                                }
+                                portdeckdata.set(deckIdx, api_data);
+                                dbHelper.putValue(DB_KEY_DECKPORT, portdeckdata.toString());
+                                boolean result = setMoraleValue(deckIdx, deckInfoCalc.checkMinimumMorale(portdeckdata, deckIdx), false, is_same);
+                                processMoraleInfo(deckIdx, portdeckdata, result);
+                            }
+                        }
+                        updateFleetView();
+
+                    }
+
+                    if (url.startsWith(API_REQ_HENSEI_COMBINED)) {
+                        if (jsonDataObj.has("api_data")) {
+                            JsonObject api_data = jsonDataObj.getAsJsonObject("api_data");
+                            int api_combined = api_data.get("api_combined").getAsInt();
+                            isCombined = (api_combined > 0);
+                            KcaBattle.isCombined = api_combined > 0;
+                        }
+                        Log.e("KCA", "Combined: " + String.valueOf(isCombined));
+                        updateFleetView();
+                    }
+
+                    if (url.startsWith(API_REQ_MEMBER_ITEMUSE_COND)) {
+                        String[] requestData = request.split("&");
+                        int deckIdx = -1;
+                        for (int i = 0; i < requestData.length; i++) {
+                            String decodedData = URLDecoder.decode(requestData[i], "utf-8");
+                            if (decodedData.startsWith("api_deck_id=")) {
+                                deckIdx = Integer.valueOf(decodedData.replace("api_deck_id=", "")) - 1;
+                                break;
+                            }
+                        }
+                        KcaMoraleInfo.setItemUseDeck(deckIdx);
+                        updateFleetView();
+                    }
+
+                    if (url.startsWith(API_GET_MEMBER_SHIP2)) {
+                        if (jsonDataObj.has("api_data")) {
+                            JsonArray api_data = jsonDataObj.getAsJsonArray("api_data");
+                            JsonArray api_data_deck = jsonDataObj.getAsJsonArray("api_data_deck");
+                            KcaApiData.updateUserShipData(api_data);
+                            dbHelper.putValue(DB_KEY_DECKPORT, api_data_deck.toString());
+
+                            int itemuse_deck = KcaMoraleInfo.getItemUseDeckAndReset();
+                            if (itemuse_deck > 0) {
+                                boolean result = setMoraleValue(itemuse_deck, deckInfoCalc.checkMinimumMorale(api_data_deck, itemuse_deck), false, false);
+                                processMoraleInfo(itemuse_deck, api_data_deck, result);
+                            }
+                        }
+                        updateFleetView();
+                    }
+
+                    if (url.startsWith(API_GET_MEMBER_SHIP3)) {
+                        String[] requestData = request.split("&");
+                        int userShipId = -1;
+                        for (int i = 0; i < requestData.length; i++) {
+                            String decodedData = URLDecoder.decode(requestData[i], "utf-8");
+                            if (decodedData.startsWith("api_shipid=")) {
+                                userShipId = Integer.valueOf(decodedData.replace("api_shipid=", ""));
+                                break;
+                            }
+                        }
+                        if (userShipId != -1) {
+                            if (jsonDataObj.has("api_data")) {
+                                JsonObject api_data = jsonDataObj.getAsJsonObject("api_data");
+                                dbHelper.putValue(DB_KEY_DECKPORT, api_data.get("api_deck_data").getAsJsonArray().toString());
+                                dbHelper.test();
+                                KcaApiData.updateUserShip(api_data.get("api_ship_data").getAsJsonArray().get(0).getAsJsonObject());
+                            }
+                        }
+                        if (kaisouProcessFlag) {
+                            toastInfo();
+                            kaisouProcessFlag = false;
+                            updateFleetView();
                         }
                     }
-                    if (certainFlag != 1 && isOpendbEnabled()) {
-                        KcaOpendbAPI.sendRemodelData(flagship, assistant, itemKcId, level, api_remodel_flag);
+
+                    if (url.startsWith(API_REQ_KAISOU_SLOT_EXCHANGE)) {
+                        String[] requestData = request.split("&");
+                        int userShipId = -1;
+                        for (int i = 0; i < requestData.length; i++) {
+                            String decodedData = URLDecoder.decode(requestData[i], "utf-8");
+                            if (decodedData.startsWith("api_id=")) {
+                                userShipId = Integer.valueOf(decodedData.replace("api_id=", ""));
+                                break;
+                            }
+                        }
+                        if (userShipId != -1 && jsonDataObj.has("api_data")) {
+                            JsonObject api_data = jsonDataObj.getAsJsonObject("api_data");
+                            KcaApiData.updateUserShipSlot(userShipId, api_data);
+                        }
+                        updateFleetView();
+                        //toastInfo();
+                    }
+
+                    if (url.startsWith(API_REQ_KAISOU_SLOT_DEPRIVE)) {
+                        if (jsonDataObj.has("api_data")) {
+                            JsonObject api_data = jsonDataObj.getAsJsonObject("api_data");
+                            JsonObject api_ship_data = api_data.get("api_ship_data").getAsJsonObject();
+                            KcaApiData.updateUserShip(api_ship_data.get("api_set_ship").getAsJsonObject());
+                            KcaApiData.updateUserShip(api_ship_data.get("api_unset_ship").getAsJsonObject());
+                        }
+                        updateFleetView();
+                        //toastInfo();
+                    }
+
+                    if (url.startsWith(API_REQ_KAISOU_POWERUP)) {
+                        String[] requestData = request.split("&");
+                        int targetId = -1;
+                        String itemIds = "";
+                        for (int i = 0; i < requestData.length; i++) {
+                            String decodedData = URLDecoder.decode(requestData[i], "utf-8");
+                            if (decodedData.startsWith("api_id=")) {
+                                targetId = Integer.valueOf(decodedData.replace("api_id=", ""));
+                            }
+                            if (decodedData.startsWith("api_id_items=")) {
+                                itemIds = decodedData.replace("api_id_items=", "");
+                            }
+                        }
+                        if (jsonDataObj.has("api_data")) {
+                            JsonObject api_data = jsonDataObj.getAsJsonObject("api_data");
+                            dbHelper.putValue(DB_KEY_DECKPORT, api_data.getAsJsonArray("api_deck").toString());
+                            dbHelper.test();
+                            updateUserShip(api_data.getAsJsonObject("api_ship"));
+                            KcaApiData.deleteUserShip(itemIds, 1);
+                            if (api_data.has("api_powerup_flag") && api_data.get("api_powerup_flag").getAsInt() == 1) {
+                                questTracker.updateIdCountTracker("702");
+                                questTracker.updateIdCountTracker("703");
+                                updateQuestView();
+                            }
+                        }
+
+                        updateFleetView();
+                    }
+
+                    if (url.equals(API_REQ_KOUSYOU_REMOEL_SLOT)) {
+                        JsonArray portdeckdata = dbHelper.getJsonArrayValue(DB_KEY_DECKPORT);
+                        int[] kcShipData = deckInfoCalc.getKcShipList(portdeckdata, 0);
+                        int flagship = kcShipData[0];
+                        int assistant = kcShipData[1];
+
+                        String[] requestData = request.split("&");
+                        int certainFlag = 0;
+                        int itemId = 0;
+                        for (int i = 0; i < requestData.length; i++) {
+                            String decodedData = URLDecoder.decode(requestData[i], "utf-8");
+                            if (decodedData.startsWith("api_certain_flag=")) {
+                                certainFlag = Integer.valueOf(decodedData.replace("api_certain_flag=", ""));
+                            }
+                            if (decodedData.startsWith("api_slot_id=")) {
+                                itemId = Integer.valueOf(decodedData.replace("api_slot_id=", ""));
+                            }
+                        }
+
+                        JsonObject itemData = KcaApiData.getUserItemStatusById(itemId, "slotitem_id,level", "");
+                        if (itemData != null) {
+                            int itemKcId = itemData.get("slotitem_id").getAsInt();
+                            int level = itemData.get("level").getAsInt();
+                            int api_remodel_flag = 0;
+                            if (jsonDataObj.has("api_data")) {
+                                JsonObject api_data = jsonDataObj.getAsJsonObject("api_data");
+                                api_remodel_flag = api_data.get("api_remodel_flag").getAsInt();
+                                if (certainFlag == 1 || api_remodel_flag == 1) {
+                                    JsonObject api_after_slot = api_data.get("api_after_slot").getAsJsonObject();
+                                    JsonArray api_slot_item = new JsonArray();
+                                    api_slot_item.add(api_after_slot);
+                                    for (int i = 0; i < api_slot_item.size(); i++) {
+                                        JsonObject item = api_slot_item.get(i).getAsJsonObject();
+                                        dbHelper.putItemValue(item.get("api_id").getAsInt(), item.toString());
+                                    }
+                                }
+                                JsonElement use_slot_id = api_data.get("api_use_slot_id");
+                                List<String> use_slot_id_list = new ArrayList<String>();
+                                if (use_slot_id != null) {
+                                    for (JsonElement id : use_slot_id.getAsJsonArray()) {
+                                        use_slot_id_list.add(id.getAsString());
+                                    }
+                                    KcaApiData.removeSlotItemData(joinStr(use_slot_id_list, ","));
+                                }
+                            }
+                            if (certainFlag != 1 && isOpenDBEnabled()) {
+                                KcaOpenDBAPI.sendRemodelData(flagship, assistant, itemKcId, level, api_remodel_flag);
+                            }
+                            questTracker.updateIdCountTracker("619");
+                            updateQuestView();
+                        }
                     }
                 }
             }
-
-            if (url.equals(KCA_API_VPN_DATA_ERROR)) { // VPN Data Dump Send
-                String app_version = BuildConfig.VERSION_NAME;
-                String token = "a49467944c34d567fa7f2b051a59c808";
-                String api_url = jsonDataObj.get("uri").getAsString();
-                String api_request = "see_data";
-
-                customToast.showToast(getStringWithLocale(R.string.service_failed_msg), Toast.LENGTH_SHORT, ContextCompat.getColor(getApplicationContext(), R.color.colorPrimaryDark));
-                String dataSendUrl = String.format(getStringWithLocale(R.string.errorlog_service_link), token, api_url, api_request, app_version);
-                AjaxCallback<String> cb = new AjaxCallback<String>() {
-                    @Override
-                    public void callback(String url, String data, AjaxStatus status) {
-                        // do nothing
-                    }
-                };
-                AQuery aq = new AQuery(KcaService.this);
-                cb.header("Referer", "app:/KCA/");
-                cb.header("Content-Type", "application/x-www-form-urlencoded");
-                HttpEntity entity = null;
-
-                JsonObject sendData = new JsonObject();
-                //sendData.addProperty("data", data);
-                sendData.addProperty("error", jsonDataObj.toString());
-                String sendDataString = sendData.toString();
-
-                entity = new ByteArrayEntity(sendDataString.getBytes());
-                cb.param(AQuery.POST_ENTITY, entity);
-                aq.ajax(dataSendUrl, String.class, cb);
-            }
-
-        } catch (JsonSyntaxException e) {
-            //Log.e("KCA", "ParseError");
-            //Log.e("KCA", data);
-            e.printStackTrace();
-
-        } catch (IOException e) {
-            e.printStackTrace();
+            sendQuestCompletionInfo();
         } catch (Exception e) {
             e.printStackTrace();
-
-            String app_version = BuildConfig.VERSION_NAME;
-            String token = "a49467944c34d567fa7f2b051a59c808";
-            String api_url = "";
             String api_request = "";
             List<String> filtered_resquest_list = new ArrayList<String>();
             try {
-                api_url = URLEncoder.encode(url, "utf-8");
                 String[] requestData = request.split("&");
                 for (int i = 0; i < requestData.length; i++) {
                     String decodedData = URLDecoder.decode(requestData[i], "utf-8");
@@ -1240,34 +2124,18 @@ public class KcaService extends Service {
                         filtered_resquest_list.add(requestData[i]);
                     }
                 }
-                api_request = URLEncoder.encode(joinStr(filtered_resquest_list, "&"), "utf-8");
+                api_request = joinStr(filtered_resquest_list, "&");
             } catch (UnsupportedEncodingException e1) {
                 e1.printStackTrace();
             }
-            customToast.showToast(getStringWithLocale(R.string.service_failed_msg), Toast.LENGTH_SHORT, ContextCompat.getColor(getApplicationContext(), R.color.colorPrimaryDark));
-            String dataSendUrl = String.format(getStringWithLocale(R.string.errorlog_service_link), token, api_url, api_request, app_version);
-            AjaxCallback<String> cb = new AjaxCallback<String>() {
-                @Override
-                public void callback(String url, String data, AjaxStatus status) {
-                    // do nothing
-                }
-            };
-            AQuery aq = new AQuery(KcaService.this);
-            cb.header("Referer", "app:/KCA/");
-            cb.header("Content-Type", "application/x-www-form-urlencoded");
-            HttpEntity entity = null;
 
-            JsonObject sendData = new JsonObject();
-            //sendData.addProperty("data", data);
-            sendData.addProperty("error", getStringFromException(e));
-            String sendDataString = sendData.toString();
-
-            entity = new ByteArrayEntity(sendDataString.getBytes());
-            cb.param(AQuery.POST_ENTITY, entity);
-            aq.ajax(dataSendUrl, String.class, cb);
+            String process_data = raw.toString();
+            if (url.contains(API_PORT)) {
+                process_data = "PORT DATA OMITTED";
+            }
+            dbHelper.recordErrorLog(ERROR_TYPE_SERVICE, url, api_request, process_data, getStringFromException(e));
         }
     }
-
 
     private static class kcaNotificationHandler extends Handler {
         private final WeakReference<KcaService> mService;
@@ -1291,127 +2159,153 @@ public class KcaService extends Service {
         String data = msg.getData().getString("data");
         KcaCustomToast customToast = new KcaCustomToast(getApplicationContext());
 
-        if (!prefs.getBoolean(PREF_SVC_ENABLED, false) || url.length() == 0 || viewNotificationBuilder == null) {
+        if (!prefs.getBoolean(PREF_SVC_ENABLED, false) || url.length() == 0) {
             Log.e("KCA", "url: " + url);
-            Log.e("KCA", "viewNotificationBuilder: " + String.valueOf(viewNotificationBuilder == null));
             return;
         }
 
-        JsonObject jsonDataObj;
+        JsonObject jsonDataObj = null;
         try {
-            jsonDataObj = new JsonParser().parse(data).getAsJsonObject();
+            if (data != null && data.length() > 0) {
+                jsonDataObj = gson.fromJson(data, JsonObject.class);
+            }
+
             if (url.startsWith(KCA_API_DATA_LOADED)) {
                 if (jsonDataObj.has("ship")) {
-                    Log.e("KCA", String.format("Ship: %d", jsonDataObj.get("ship").getAsInt()));
-                    Log.e("KCA", String.format("Item: %d", jsonDataObj.get("item").getAsInt()));
+                    Log.e("KCA", KcaUtils.format("Ship: %d", jsonDataObj.get("ship").getAsInt()));
+                    Log.e("KCA", KcaUtils.format("Item: %d", jsonDataObj.get("item").getAsInt()));
+                    restartFlag = false;
                 }
                 api_start2_loading_flag = false;
-                if (isUserItemDataLoaded()) {
-                    processFirstDeckInfo(currentPortDeckData);
-                }
+                updateFleetView();
+            }
+
+            if (url.startsWith(KCA_API_FAIRY_RETURN)) {
+                startService(new Intent(this, KcaViewButtonService.class)
+                        .setAction(KcaViewButtonService.RETURN_FAIRY_ACTION));
+            }
+
+            if (url.startsWith(KCA_API_FAIRY_HIDDEN)) {
+                Intent returnIntent = new Intent(this, KcaViewButtonService.class)
+                        .setAction(RETURN_FAIRY_ACTION);
+                Intent removeIntent = new Intent(this, KcaViewButtonService.class)
+                        .setAction(REMOVE_FAIRY_ACTION);
+                PendingIntent returnPendingIntent = PendingIntent.getService(getApplicationContext(), 0,
+                        returnIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+                PendingIntent removePendingIntent = PendingIntent.getService(getApplicationContext(), 0,
+                        removeIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+
+                notifyBuilder.addAction(new NotificationCompat.Action(0, getStringWithLocale(R.string.fairy_hidden_notification_action_return), returnPendingIntent))
+                        .addAction(new NotificationCompat.Action(0, getStringWithLocale(R.string.fairy_hidden_notification_action_remove), removePendingIntent));
+            }
+
+            if (url.startsWith(KCA_API_FAIRY_CHECKED)) {
+                notifyBuilder.mActions.clear();
+                updateNotification(false);
             }
 
             if (url.startsWith(KCA_API_PREF_FAIRY_CHANGED)) {
-                if (jsonDataObj.has("id")) {
-                    String fairyId = "noti_icon_".concat(jsonDataObj.get("id").getAsString());
-                    viewBitmapId = getId(fairyId, R.mipmap.class);
-                    viewBitmapSmallId = getId(fairyId.concat("_small"), R.mipmap.class);
-                    viewBitmap = ((BitmapDrawable) ContextCompat.getDrawable(this, viewBitmapId)).getBitmap();
-                    setFrontViewNotifier(FRONT_NONE, 0, null);
+                String fairyId = "noti_icon_".concat(getStringPreferences(getApplicationContext(), PREF_FAIRY_ICON));
+                Bitmap viewBitmap = KcaUtils.getFairyImageFromStorage(getApplicationContext(), fairyId, dbHelper);
+                if (viewBitmap != null) notifyBuilder.setLargeIcon(viewBitmap);
+                updateNotification(false);
+                startService(new Intent(this, KcaViewButtonService.class)
+                        .setAction(KcaViewButtonService.FAIRY_CHANGE));
+            }
+
+            if (url.startsWith(KCA_API_PREF_NOTICOUNT_CHANGED)) {
+                int count = KcaAlarmService.getAlarmCount();
+                if (count > 0) {
+                    notifyBuilder.setSmallIcon(R.mipmap.ic_stat_notify_1);
+                } else {
+                    notifyBuilder.setSmallIcon(R.mipmap.ic_stat_notify_0);
                 }
+                updateNotification(false);
             }
 
             if (url.startsWith(KCA_API_PREF_LANGUAGE_CHANGED)) {
-                if (currentPortDeckData != null) processFirstDeckInfo(currentPortDeckData);
-                setFrontViewNotifier(FRONT_NONE, 0, null);
+                updateExpViewNotification();
             }
 
-            if (url.startsWith(KCA_API_NOTI_EXP_LEFT)) {
-                // //Log.e("KCA", "Expedition Notification Handler Called");
-                //int kantaiIndex = ((Long) jsonDataObj.get("idx")).intValue();
-                //String str_data = (String) jsonDataObj.get("str");
-                if (isExpViewEnabled()) {
-                    setFrontViewNotifier(FRONT_NONE, 0, null);
-                }
+            if (url.startsWith(KCA_API_PREF_ALARMDELAY_CHANGED)) {
+                processExpeditionInfo(true);
+                processDockingInfo(true);
+
+                updateExpViewNotification();
             }
 
-            if (url.startsWith(KCA_API_NOTI_EXP_CANCELED)) {
-                // //Log.e("KCA", "Expedition Notification Handler Called");
-                int kantaiIndex = jsonDataObj.get("kantai_idx").getAsInt();
-                String kantaiName = jsonDataObj.get("kantai_name").getAsString();
-                int missionNo = jsonDataObj.get("mission_no").getAsInt();
-                String missionName = jsonDataObj.get("mission_krname").getAsString();
-                //Intent intent = new Intent(KcaService.this, MainActivity.class);
-
-                if (isExpNotifyEnabled()) {
-                    notifiManager.notify(getNotificationId(NOTI_EXP, kantaiIndex), createExpeditionNotification(missionNo, missionName, kantaiName, true, false));
+            if (url.startsWith(KCA_API_PREF_PRIORITY_CHANGED)) {
+                if (getPriority()) {
+                    notifyBuilder.setPriority(IMPORTANCE_HIGH);
+                } else {
+                    notifyBuilder.setPriority(IMPORTANCE_DEFAULT);
                 }
+                updateNotification(false);
             }
 
             if (url.startsWith(KCA_API_NOTI_EXP_FIN)) {
-                // //Log.e("KCA", "Expedition Notification Handler Called");
-                int kantaiIndex = jsonDataObj.get("kantai_idx").getAsInt();
-                String kantaiName = jsonDataObj.get("kantai_name").getAsString();
-                int missionNo = jsonDataObj.get("mission_no").getAsInt();
-                String missionName = jsonDataObj.get("mission_krname").getAsString();
-                boolean missionCanceled = jsonDataObj.get("mission_canceled").getAsBoolean();
-                //Intent intent = new Intent(KcaService.this, MainActivity.class);
-
-                kcaExpeditionInfoList[kantaiIndex] = "";
-                if (isExpNotifyEnabled()) {
-                    Log.e("KCA", "fin " + String.valueOf(kantaiIndex));
-                    notifiManager.notify(getNotificationId(NOTI_EXP, kantaiIndex), createExpeditionNotification(missionNo, missionName, kantaiName, false, missionCanceled));
-                }
+                // Currently Nothing
             }
 
             if (url.startsWith(KCA_API_NOTI_DOCK_FIN)) {
-                int dockId = jsonDataObj.get("dock_no").getAsInt();
-                String shipName = getShipTranslation(jsonDataObj.get("ship_name").getAsString(), false);
-                if (isDockNotifyEnabled()) {
-                    notifiManager.notify(getNotificationId(NOTI_DOCK, dockId), createDockingNotification(dockId, shipName));
-                }
-                kcaDockingRunnableList[dockId] = null;
-                kcaDockingList[dockId] = null;
+                // Currently Nothing
             }
 
             if (url.startsWith(KCA_API_NOTI_BATTLE_INFO)) {
+                // jsonDataObj = dbHelper.getJsonObjectValue(DB_KEY_BATTLEINFO);
+                String api_url = jsonDataObj.get("api_url").getAsString();
+                if (api_url.startsWith(API_REQ_SORTIE_BATTLE_RESULT) || url.startsWith(API_REQ_COMBINED_BATTLERESULT)) {
+                    JsonObject questTrackData = dbHelper.getJsonObjectValue(DB_KEY_QTRACKINFO);
+                    questTracker.updateBattleTracker(questTrackData);
+                    updateQuestView();
+                } else if (api_url.startsWith(API_REQ_PRACTICE_BATTLE_RESULT)) {
+                    JsonObject questTrackData = dbHelper.getJsonObjectValue(DB_KEY_QTRACKINFO);
+                    String rank = questTrackData.get("result").getAsString();
+                    questTracker.updateIdCountTracker("303");
+                    if (rank.equals("S") || rank.equals("A") || rank.equals("B")) {
+                        questTracker.updateIdCountTracker("304");
+                        questTracker.updateIdCountTracker("302");
+                        questTracker.updateIdCountTracker("311");
+                    }
+                    updateQuestView();
+                }
                 Intent intent = new Intent(KCA_MSG_BATTLE_INFO);
-                intent.putExtra(KCA_MSG_DATA, data);
                 broadcaster.sendBroadcast(intent);
             }
 
             if (url.startsWith(KCA_API_NOTI_BATTLE_NODE)) {
                 // Reference: https://github.com/andanteyk/ElectronicObserver/blob/1052a7b177a62a5838b23387ff35283618f688dd/ElectronicObserver/Other/Information/apilist.txt
                 if (jsonDataObj.has("api_maparea_id")) {
-                    int currentMapArea = jsonDataObj.get("api_maparea_id").getAsInt();
-                    int currentMapNo = jsonDataObj.get("api_mapinfo_no").getAsInt();
-                    int currentNode = jsonDataObj.get("api_no").getAsInt();
-                    String currentNodeAlphabet = KcaApiData.getCurrentNodeAlphabet(currentMapArea, currentMapNo, currentNode);
-                    int api_event_kind = jsonDataObj.get("api_event_kind").getAsInt();
-                    int api_event_id = jsonDataObj.get("api_event_id").getAsInt();
-                    int api_color_no = jsonDataObj.get("api_color_no").getAsInt();
-                    currentNodeInfo = KcaApiData.getNodeFullInfo(contextWithLocale, currentNodeAlphabet, api_event_id, api_event_kind, false);
-
-                    customToast.showToast(currentNodeInfo, Toast.LENGTH_LONG,
-                            getNodeColor(getApplicationContext(), api_event_id, api_event_kind, api_color_no));
-                    //Toast.makeText(getApplicationContext(), currentNodeInfo, Toast.LENGTH_LONG).show();
+                    JsonObject questTrackData = dbHelper.getJsonObjectValue(DB_KEY_QTRACKINFO);
+                    questTracker.updateNodeTracker(questTrackData);
                 }
+
                 Intent intent = new Intent(KCA_MSG_BATTLE_NODE);
-                intent.putExtra(KCA_MSG_DATA, data);
                 broadcaster.sendBroadcast(intent);
-                setFrontViewNotifier(FRONT_NONE, 0, null);
             }
 
             if (url.startsWith(KCA_API_NOTI_BATTLE_DROPINFO)) {
-                Log.e("KCA", KCA_API_NOTI_BATTLE_DROPINFO + " " + String.valueOf(isOpendbEnabled()));
+                Log.e("KCA", KCA_API_NOTI_BATTLE_DROPINFO + " " + String.valueOf(isOpenDBEnabled()));
                 int world = jsonDataObj.get("world").getAsInt();
                 int map = jsonDataObj.get("map").getAsInt();
                 int node = jsonDataObj.get("node").getAsInt();
                 String rank = jsonDataObj.get("rank").getAsString();
                 int maprank = jsonDataObj.get("maprank").getAsInt();
+                JsonObject enemy = jsonDataObj.getAsJsonObject("enemy");
+                boolean isboss = jsonDataObj.get("isboss").getAsBoolean();
+                String quest_name = jsonDataObj.get("quest_name").getAsString();
+                String enemy_name = jsonDataObj.get("enemy_name").getAsString();
+                int inventory = jsonDataObj.get("inventory").getAsInt();
                 int result = jsonDataObj.get("result").getAsInt();
-                if (isOpendbEnabled()) {
-                    KcaOpendbAPI.sendShipDropData(world, map, node, rank, maprank, result);
+
+                if (KcaApiData.checkUserPortEnough()) {
+                    if (isOpenDBEnabled()) KcaOpenDBAPI.sendShipDropData(world, map, node, rank, maprank, enemy, inventory, result);
+                    if (isPoiDBEnabled()) KcaPoiDBAPI.sendShipDropData(result, world * 10 + map, quest_name, node, enemy_name, rank, isboss, getAdmiralLevel(), maprank, enemy);
+                }
+                recordDropLog(jsonDataObj, !KcaApiData.checkUserPortEnough());
+                if (result > 0) {
+                    KcaApiData.addShipCountInBattle();
+                    KcaApiData.addItemCountInBattle(result);
                 }
             }
 
@@ -1422,130 +2316,122 @@ public class KcaService extends Service {
                         String soundKind = getStringPreferences(getApplicationContext(), PREF_KCA_NOTI_SOUND_KIND);
                         if (soundKind.equals(getString(R.string.sound_kind_value_normal)) || soundKind.equals(getString(R.string.sound_kind_value_mixed))) {
                             if (mAudioManager.getRingerMode() == AudioManager.RINGER_MODE_NORMAL) {
-                                Uri notificationUri = Uri.parse(getStringPreferences(getApplicationContext(), PREF_KCA_NOTI_RINGTONE));
+                                Uri notificationUri = KcaUtils.getContentUri(getApplicationContext(),
+                                        Uri.parse(getStringPreferences(getApplicationContext(), PREF_KCA_NOTI_RINGTONE)));
                                 Log.e("KCA", getStringPreferences(getApplicationContext(), PREF_KCA_NOTI_RINGTONE));
                                 KcaUtils.playNotificationSound(mediaPlayer, getApplicationContext(), notificationUri);
                             }
                         }
-                        vibrator.vibrate(1500);
+                        doVibrate(vibrator, 1500);
                     }
                 }
 
                 if (heavyDamagedMode == HD_DANGER) {
-                    customToast.showToast(getStringWithLocale(R.string.heavy_damaged), Toast.LENGTH_LONG, ContextCompat.getColor(this, R.color.colorHeavyDmgStatePanel));
+                    makeToast(getStringWithLocale(R.string.heavy_damaged), Toast.LENGTH_LONG, ContextCompat.getColor(this, R.color.colorHeavyDmgStatePanel));
                     Intent intent = new Intent(KCA_MSG_BATTLE_HDMG);
                     intent.putExtra(KCA_MSG_DATA, "1");
                     broadcaster.sendBroadcast(intent);
                 } else {
                     if (heavyDamagedMode == HD_DAMECON) {
-                        customToast.showToast(getStringWithLocale(R.string.heavy_damaged_damecon), Toast.LENGTH_LONG, ContextCompat.getColor(this, R.color.colorHeavyDmgStatePanel));
+                        makeToast(getStringWithLocale(R.string.heavy_damaged_damecon), Toast.LENGTH_LONG, ContextCompat.getColor(this, R.color.colorHeavyDmgStatePanel));
                     }
                     Intent intent = new Intent(KCA_MSG_BATTLE_HDMG);
                     intent.putExtra(KCA_MSG_DATA, "0");
                     broadcaster.sendBroadcast(intent);
                 }
-                setFrontViewNotifier(FRONT_NONE, 0, null);
             }
 
             if (url.startsWith(KCA_API_PREF_CN_CHANGED)) {
-                processFirstDeckInfo(currentPortDeckData);
+                updateFleetView();
             }
 
             if (url.startsWith(KCA_API_PREF_EXPVIEW_CHANGED)) {
-                setFrontViewNotifier(FRONT_NONE, 0, null);
+                if (isMissionTimerViewEnabled()) {
+                    timeScheduler = Executors.newSingleThreadScheduledExecutor();
+                    timeScheduler.scheduleAtFixedRate(timer, 0, 1, TimeUnit.SECONDS);
+                } else {
+                    if (timeScheduler != null) timeScheduler.shutdown();
+                    timeScheduler = null;
+                }
             }
 
             if (url.startsWith(KCA_API_OPENDB_FAILED)) {
-                customToast.showToast(getStringWithLocale(R.string.opendb_failed_msg), Toast.LENGTH_SHORT, ContextCompat.getColor(this, R.color.colorPrimaryDark));
+                makeToast(getStringWithLocale(R.string.opendb_failed_msg), Toast.LENGTH_SHORT, ContextCompat.getColor(this, R.color.colorPrimaryDark));
+                dbHelper.recordErrorLog(ERROR_TYPE_OPENDB, url, "opendb", data, "failed");
             }
 
             if (url.startsWith(KCA_API_PROCESS_BATTLE_FAILED)) {
-                String app_version = BuildConfig.VERSION_NAME;
                 String api_data = jsonDataObj.get("api_data").getAsString();
                 String api_url = jsonDataObj.get("api_url").getAsString();
                 String api_node = jsonDataObj.get("api_node").getAsString();
                 String api_error = jsonDataObj.get("api_error").getAsString();
-                String token = "df1629d6820907e7a09ea1e98d3041c2";
-
-                customToast.showToast(getStringWithLocale(R.string.process_battle_failed_msg), Toast.LENGTH_SHORT, ContextCompat.getColor(this, R.color.colorPrimaryDark));
-                String dataSendUrl = String.format(getStringWithLocale(R.string.errorlog_battle_link), token, api_url, api_node, app_version);
-                AjaxCallback<String> cb = new AjaxCallback<String>() {
-                    @Override
-                    public void callback(String url, String data, AjaxStatus status) {
-                        // do nothing
-                    }
-                };
-
-                JsonObject sendData = new JsonObject();
-                sendData.addProperty("data", api_data);
-                sendData.addProperty("error", api_error);
-                String sendDataString = sendData.toString();
-
-                AQuery aq = new AQuery(KcaService.this);
-                cb.header("Referer", "app:/KCA/");
-                cb.header("Content-Type", "application/x-www-form-urlencoded");
-                HttpEntity entity = new ByteArrayEntity(sendDataString.getBytes());
-                cb.param(AQuery.POST_ENTITY, entity);
-                aq.ajax(dataSendUrl, String.class, cb);
+                makeToast(getStringWithLocale(R.string.process_battle_failed_msg), Toast.LENGTH_SHORT, ContextCompat.getColor(this, R.color.colorPrimaryDark));
+                dbHelper.recordErrorLog(ERROR_TYPE_BATTLE, api_url, api_node, api_data, api_error);
             }
 
+            sendQuestCompletionInfo();
         } catch (JsonSyntaxException e) {
             e.printStackTrace();
-            Toast.makeText(getApplicationContext(), data, Toast.LENGTH_LONG).show();
+            makeText(getApplicationContext(), data, Toast.LENGTH_LONG).show();
         } catch (Exception e) {
             e.printStackTrace();
-
-            String app_version = BuildConfig.VERSION_NAME;
-            String token = "8988e900c3ea9bb1c9df330c4833c144";
-            String kca_url = "";
-            try {
-                kca_url = URLEncoder.encode(url, "utf-8");
-            } catch (UnsupportedEncodingException e1) {
-                e1.printStackTrace();
-            }
-
-            customToast.showToast(getStringWithLocale(R.string.service_failed_msg), Toast.LENGTH_SHORT, ContextCompat.getColor(this, R.color.colorPrimaryDark));
-            String dataSendUrl = String.format(getStringWithLocale(R.string.errorlog_notify_link), token, kca_url, app_version);
-            AjaxCallback<String> cb = new AjaxCallback<String>() {
-                @Override
-                public void callback(String url, String data, AjaxStatus status) {
-                    // do nothing
-                }
-            };
-
-            JsonObject sendData = new JsonObject();
-            sendData.addProperty("data", data);
-            sendData.addProperty("error", getStringFromException(e));
-            String sendDataString = sendData.toString();
-
-            AQuery aq = new AQuery(KcaService.this);
-            cb.header("Referer", "app:/KCA/");
-            cb.header("Content-Type", "application/x-www-form-urlencoded");
-            HttpEntity entity = new ByteArrayEntity(sendDataString.getBytes());
-            cb.param(AQuery.POST_ENTITY, entity);
-            aq.ajax(dataSendUrl, String.class, cb);
+            makeToast(getStringWithLocale(R.string.service_failed_msg), Toast.LENGTH_SHORT, ContextCompat.getColor(this, R.color.colorPrimaryDark));
+            dbHelper.recordErrorLog(ERROR_TYPE_NOTI, url, "notification", data, getStringFromException(e));
         }
     }
 
+    private void sendQuestCompletionInfo() {
+        boolean quest_completed_exist = questTracker.check_quest_completed(dbHelper);
+        Intent intent = new Intent(KCA_MSG_QUEST_COMPLETE);
+        String response = "0";
+        if (quest_completed_exist) response = "1";
+        intent.putExtra(KCA_MSG_DATA, response);
+        broadcaster.sendBroadcast(intent);
+    }
 
     private int getSeekCn() {
         return Integer.valueOf(getStringPreferences(getApplicationContext(), PREF_KCA_SEEK_CN));
     }
 
-    private boolean isOpendbEnabled() {
+    private int getExpeditionType() {
+        return Integer.valueOf(getStringPreferences(getApplicationContext(), PREF_KCA_EXP_TYPE));
+    }
+
+    private boolean isOpenDBEnabled() {
         return getBooleanPreferences(getApplicationContext(), PREF_OPENDB_API_USE);
     }
 
-    private boolean isExpViewEnabled() {
+    private boolean isPoiDBEnabled() {
+        return getBooleanPreferences(getApplicationContext(), PREF_POIDB_API_USE);
+    }
+
+    private boolean isDropLogEnable() {
+        return getBooleanPreferences(getApplicationContext(), PREF_KCA_ACTIVATE_DROPLOG);
+    }
+
+    private boolean isResourceLogEnable() {
+        return getBooleanPreferences(getApplicationContext(), PREF_KCA_ACTIVATE_DROPLOG);
+    }
+
+
+    private boolean isBattleViewEnabled() {
+        return getBooleanPreferences(getApplicationContext(), PREF_KCA_BATTLEVIEW_USE);
+    }
+
+    private boolean isBattleNodeEnabled() {
+        return getBooleanPreferences(getApplicationContext(), PREF_KCA_BATTLENODE_USE);
+    }
+
+    private boolean isMissionTimerViewEnabled() {
         return getBooleanPreferences(getApplicationContext(), PREF_KCA_EXP_VIEW);
     }
 
-    private boolean isExpNotifyEnabled() {
-        return getBooleanPreferences(getApplicationContext(), PREF_KCA_NOTI_EXP);
+    private boolean isAkashiTimerNotiEnabled() {
+        return getBooleanPreferences(getApplicationContext(), PREF_KCA_NOTI_AKASHI);
     }
 
-    private boolean isDockNotifyEnabled() {
-        return getBooleanPreferences(getApplicationContext(), PREF_KCA_NOTI_DOCK);
+    private boolean getPriority() {
+        return getBooleanPreferences(getApplicationContext(), PREF_KCA_SET_PRIORITY);
     }
 
     private boolean isHDVibrateEnabled() {
@@ -1576,152 +2462,13 @@ public class KcaService extends Service {
         return seekType;
     }
 
-    private void processBasicInfo(JsonObject data) {
-        KcaApiData.maxShipSize = data.get("api_max_chara").getAsInt();
-        KcaApiData.maxItemSize = data.get("api_max_slotitem").getAsInt();
+    private void processExpeditionInfo() {
+        processExpeditionInfo(false);
     }
 
-    private void processFirstDeckInfo(JsonArray data) {
-        KcaCustomToast customToast = new KcaCustomToast(getApplicationContext());
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-        String delimeter = " | ";
-        if (!isGameDataLoaded()) {
-            Log.e("KCA", "processFirstDeckInfo: Game Data is Null");
-            new retrieveApiStartData().execute("", "down", "");
-            return;
-        } else if (!isUserItemDataLoaded() && isPortAccessed) {
-            customToast.showToast(getStringWithLocale(R.string.kca_toast_restart_at_kcanotify), Toast.LENGTH_LONG, ContextCompat.getColor(this, R.color.colorPrimaryDark));
-            Log.e("KCA", String.format("processFirstDeckInfo: useritem data is null"));
-            return;
-        } else {
-            Log.e("KCA", String.format("processFirstDeckInfo: data loaded"));
-        }
-
-        if (data == null) {
-            Log.e("KCA", "data is null");
-            kcaFirstDeckInfo = "data is null";
-            return;
-        } else {
-            kcaFirstDeckInfo = "";
-        }
-
-        int cn = getSeekCn();
-        String seekType = getSeekType();
-
-        JsonArray deckInfoData = new JsonArray();
-        JsonObject infoData = null;
-
-        String airPowerValue = "";
-        int[] airPowerRange = KcaDeckInfo.getAirPowerRange(data, 0, null);
-        if (airPowerRange[0] > 0 && airPowerRange[1] > 0) {
-            airPowerValue = String.format(getStringWithLocale(R.string.kca_toast_airpower), airPowerRange[0], airPowerRange[1]);
-            infoData = new JsonObject();
-            infoData.addProperty("is_newline", 0);
-            infoData.addProperty("portrait_value", airPowerValue);
-            infoData.addProperty("landscape_value", airPowerValue);
-            deckInfoData.add(infoData);
-        }
-
-        double seekValue = 0;
-        String seekStringValue = "";
-        seekValue = KcaDeckInfo.getSeekValue(data, 0, cn, KcaBattle.getEscapeFlag());
-        if (isCombined)
-            seekValue += KcaDeckInfo.getSeekValue(data, 1, cn, KcaBattle.getEscapeFlag());
-        if (cn == SEEK_PURE) {
-            seekStringValue = String.format(getStringWithLocale(R.string.kca_toast_seekvalue_d), seekType, (int) seekValue);
-        } else {
-            seekStringValue = String.format(getStringWithLocale(R.string.kca_toast_seekvalue_f), seekType, seekValue);
-        }
-        infoData = new JsonObject();
-        infoData.addProperty("is_newline", 0);
-        infoData.addProperty("is_portrait_newline", 0);
-        infoData.addProperty("portrait_value", seekStringValue);
-        infoData.addProperty("landscape_value", seekStringValue);
-        deckInfoData.add(infoData);
-
-        int speedValue = 0;
-        if (isCombined) {
-            speedValue = KcaDeckInfo.getSpeed(data, "0,1", KcaBattle.getEscapeFlag());
-        } else {
-            speedValue = KcaDeckInfo.getSpeed(data, "0", KcaBattle.getEscapeFlag());
-        }
-
-        String speedStringValue = "";
-        switch (speedValue) {
-            case KcaApiData.SPEED_SUPERFAST:
-                speedStringValue = getStringWithLocale(R.string.speed_superfast);
-                break;
-            case KcaApiData.SPEED_FASTPLUS:
-                speedStringValue = getStringWithLocale(R.string.speed_fastplus);
-                break;
-            case KcaApiData.SPEED_FAST:
-                speedStringValue = getStringWithLocale(R.string.speed_fast);
-                break;
-            case KcaApiData.SPEED_SLOW:
-                speedStringValue = getStringWithLocale(R.string.speed_slow);
-                break;
-            case KcaApiData.SPEED_MIXED_FASTPLUS:
-                speedStringValue = getStringWithLocale(R.string.speed_mixed_fastplus);
-                break;
-            case KcaApiData.SPEED_MIXED_FAST:
-                speedStringValue = getStringWithLocale(R.string.speed_mixed_fast);
-                break;
-            case KcaApiData.SPEED_MIXED_NORMAL:
-                speedStringValue = getStringWithLocale(R.string.speed_mixed_normal);
-                break;
-            default:
-                speedStringValue = getStringWithLocale(R.string.speed_none);
-                break;
-        }
-
-        infoData = new JsonObject();
-        infoData.addProperty("is_newline", 0);
-        infoData.addProperty("portrait_value", speedStringValue);
-        //infoData.addProperty("landscape_value", speedStringValue.concat(getStringWithLocale(R.string.speed_postfix)));
-        infoData.addProperty("landscape_value", speedStringValue);
-        deckInfoData.add(infoData);
-
-        int[] tp = new int[2];
-        if (isCombined) {
-            tp = KcaDeckInfo.getTPValue(data, "0,1", KcaBattle.getEscapeFlag());
-        } else {
-            tp = KcaDeckInfo.getTPValue(data, "0", KcaBattle.getEscapeFlag());
-        }
-        String tpValue = String.format(getStringWithLocale(R.string.kca_view_tpvalue), tp[0], tp[1]);
-        infoData = new JsonObject();
-        infoData.addProperty("is_newline", 1);
-        infoData.addProperty("portrait_value", tpValue);
-        infoData.addProperty("landscape_value", tpValue);
-        deckInfoData.add(infoData);
-
-        if (isCombined) {
-            String firstConditionValue = String.format(getStringWithLocale(R.string.kca_view_condition_1), KcaDeckInfo.getConditionStatus(data, 0));
-            infoData = new JsonObject();
-            infoData.addProperty("is_newline", 1);
-            infoData.addProperty("portrait_value", firstConditionValue);
-            infoData.addProperty("landscape_value", firstConditionValue);
-            deckInfoData.add(infoData);
-
-            String secondConditionValue = String.format(getStringWithLocale(R.string.kca_view_condition_2), KcaDeckInfo.getConditionStatus(data, 1));
-            infoData = new JsonObject();
-            infoData.addProperty("is_newline", 0);
-            infoData.addProperty("portrait_value", secondConditionValue);
-            infoData.addProperty("landscape_value", secondConditionValue);
-            deckInfoData.add(infoData);
-        } else {
-            String firstConditionValue = String.format(getStringWithLocale(R.string.kca_view_condition), KcaDeckInfo.getConditionStatus(data, 0));
-            infoData = new JsonObject();
-            infoData.addProperty("is_newline", 0);
-            infoData.addProperty("portrait_value", firstConditionValue);
-            infoData.addProperty("landscape_value", firstConditionValue);
-            deckInfoData.add(infoData);
-        }
-
-        kcaFirstDeckInfo = gson.toJson(deckInfoData);
-        setFrontViewNotifier(FRONT_NONE, 0, null);
-    }
-
-    private void processExpeditionInfo(JsonArray data) {
+    private void processExpeditionInfo(boolean reset_flag) {
+        JsonArray data = dbHelper.getJsonArrayValue(DB_KEY_DECKPORT);
+        if (data == null) return;
         //Log.e("KCA", "processExpeditionInfo Called");
         int deck_id, mission_no;
         long arrive_time;
@@ -1739,85 +2486,88 @@ public class KcaService extends Service {
                 mission_no = -1;
                 arrive_time = -1;
             }
-            //Log.e("KCA", String.format("%d: %d / %d",i, mission_no, arrive_time));
-            //Log.e("KCA", String.valueOf(i) + " " + String.valueOf(KcaExpedition.complete_time_check[idx]));
-            if (kcaExpeditionRunnableList[idx] != null) {
-                if (mission_no == -1) {
-                    kcaExpeditionRunnableList[idx].kill();
-                    kcaExpeditionList[idx].interrupt();
-                    kcaExpeditionList[idx] = null;
-                    kcaExpeditionRunnableList[idx] = null;
-                } else if (arrive_time != kcaExpeditionRunnableList[idx].getArriveTime()
-                        && !kcaExpeditionRunnableList[idx].getCanceledStatus()) {
-                    notifiManager.cancel(getNotificationId(NOTI_EXP, idx));
-                    kcaExpeditionRunnableList[idx].kill();
-                    kcaExpeditionList[idx].interrupt();
-                    kcaExpeditionRunnableList[idx] = new KcaExpedition(mission_no, idx, deck_name, arrive_time, nHandler);
-                    kcaExpeditionList[idx] = new Thread(kcaExpeditionRunnableList[idx]);
-                    kcaExpeditionList[idx].start();
-                }
-            } else {
-                if (mission_no != -1 && (KcaExpedition.complete_time_check[idx] != arrive_time ||
-                        kcaExpeditionRunnableList[idx] == null)) {
-                    //Log.e("KCA", "Fleet " + String.valueOf(idx) + " went exp");
-                    kcaExpeditionRunnableList[idx] = new KcaExpedition(mission_no, idx, deck_name, arrive_time, nHandler);
-                    kcaExpeditionList[idx] = new Thread(kcaExpeditionRunnableList[idx]);
-                    kcaExpeditionList[idx].start();
 
+            Intent aIntent = new Intent(getApplicationContext(), KcaAlarmService.class);
+            if (KcaExpedition2.isInMission(i)) {
+                boolean isNotIdenticalMission = (arrive_time != KcaExpedition2.getArriveTime(i));
+                if (isNotIdenticalMission || reset_flag) {
+                    PendingIntent pendingIntent = PendingIntent.getService(
+                            getApplicationContext(),
+                            getNotificationId(NOTI_EXP, i),
+                            new Intent(getApplicationContext(), KcaAlarmService.class),
+                            PendingIntent.FLAG_UPDATE_CURRENT
+                    );
+                    pendingIntent.cancel();
+                    alarmManager.cancel(pendingIntent);
+                    KcaExpedition2.clearMissionData(i);
+                    if (mission_no != -1) {
+                        KcaExpedition2.setMissionData(i, deck_name, mission_no, arrive_time);
+                        setExpeditionAlarm(i, mission_no, deck_name, arrive_time, false, false, aIntent);
+                    }
                 }
+            } else if (mission_no != -1) {
+                KcaExpedition2.setMissionData(i, deck_name, mission_no, arrive_time);
+                setExpeditionAlarm(i, mission_no, deck_name, arrive_time, false, false, aIntent);
             }
         }
-        setFrontViewNotifier(FRONT_NONE, 0, null);
     }
 
     private void cancelExpeditionInfo(JsonObject data) {
         JsonArray canceled_info = (JsonArray) data.get("api_mission");
         int canceled_mission_no = canceled_info.get(1).getAsInt();
         long arrive_time = canceled_info.get(2).getAsLong();
-        int idx = -1;
-        for (int i = 0; i < 3; i++) {
-            if (kcaExpeditionRunnableList[i] != null) {
-                if (kcaExpeditionRunnableList[i].mission_no == canceled_mission_no) {
-                    idx = i;
-                    break;
-                }
-            }
-        }
+        int idx = KcaExpedition2.getIdxByMissionNo(canceled_mission_no);
         if (idx == -1) return;
-        Log.e("KCA", "Arrive time: " + String.valueOf(arrive_time));
-        kcaExpeditionRunnableList[idx].canceled(arrive_time);
+        else {
+            KcaExpedition2.cancel(idx, arrive_time);
+            Intent aIntent = new Intent(getApplicationContext(), KcaAlarmService.class);
+            String kantai_name = KcaExpedition2.getDeckName(idx);
+            setExpeditionAlarm(idx, canceled_mission_no, kantai_name, -1, true, false, aIntent);
+            setExpeditionAlarm(idx, canceled_mission_no, kantai_name, arrive_time, false, true, aIntent);
+        }
     }
 
-    private void processDockingInfo(JsonArray data) {
+    private void processDockingInfo() {
+        processDockingInfo(false);
+    }
+
+    private void processDockingInfo(boolean reset_flag) {
         int dockId, shipId, state;
         long completeTime;
+        JsonArray data = KcaDocking.getDockData();
+        if (data == null) return;
 
         for (int i = 0; i < data.size(); i++) {
             JsonObject ndockData = data.get(i).getAsJsonObject();
             state = ndockData.get("api_state").getAsInt();
-            notifiManager.cancel(getNotificationId(NOTI_DOCK, i));
+            int nid = getNotificationId(NOTI_DOCK, i);
+            Intent deleteIntent = new Intent(this, KcaAlarmService.class).setAction(DELETE_ACTION.concat(String.valueOf(nid)));
+            startService(deleteIntent);
+
             if (state != -1) {
                 dockId = ndockData.get("api_id").getAsInt() - 1;
                 shipId = ndockData.get("api_ship_id").getAsInt();
                 completeTime = ndockData.get("api_complete_time").getAsLong();
-
-                if (kcaDockingRunnableList[dockId] != null) { // Overwrite Data?
-                    if (kcaDockingRunnableList[dockId].ship_id != shipId) {
-                        kcaDockingList[dockId].interrupt();
-                        kcaDockingRunnableList[dockId] = null;
-                        if (shipId != 0) {
-                            kcaDockingRunnableList[dockId] = new KcaDocking(dockId, shipId, completeTime, nHandler);
-                            kcaDockingList[dockId] = new Thread(kcaDockingRunnableList[dockId]);
-                            kcaDockingList[dockId].start();
-                        }
-                    } else {
-                        kcaDockingRunnableList[dockId].setCompleteTime(dockId, completeTime);
+                Intent aIntent = new Intent(getApplicationContext(), KcaAlarmService.class);
+                if (KcaDocking.getCompleteTime(dockId) != -1) {
+                    if (KcaDocking.getShipId(dockId) != shipId || reset_flag) {
+                        PendingIntent pendingIntent = PendingIntent.getService(
+                                getApplicationContext(),
+                                getNotificationId(NOTI_DOCK, dockId),
+                                new Intent(getApplicationContext(), KcaAlarmService.class),
+                                PendingIntent.FLAG_UPDATE_CURRENT
+                        );
+                        pendingIntent.cancel();
+                        alarmManager.cancel(pendingIntent);
+                        if (shipId != 0) setDockingAlarm(dockId, shipId, completeTime, aIntent);
+                        KcaDocking.setShipId(dockId, shipId);
                     }
+                    KcaDocking.setCompleteTime(dockId, completeTime);
                 } else {
                     if (state == 1) {
-                        kcaDockingRunnableList[dockId] = new KcaDocking(dockId, shipId, completeTime, nHandler);
-                        kcaDockingList[dockId] = new Thread(kcaDockingRunnableList[dockId]);
-                        kcaDockingList[dockId].start();
+                        setDockingAlarm(dockId, shipId, completeTime, aIntent);
+                        KcaDocking.setShipId(dockId, shipId);
+                        KcaDocking.setCompleteTime(dockId, completeTime);
                     }
                 }
             }
@@ -1825,156 +2575,232 @@ public class KcaService extends Service {
     }
 
     private void processDockingSpeedup(int dockId) {
-        kcaDockingRunnableList[dockId].sendDockingFinished(true);
-        kcaDockingRunnableList[dockId] = null;
-        kcaDockingList[dockId] = null;
+        KcaApiData.updateShipHpFull(KcaDocking.getShipId(dockId));
+        KcaDocking.setShipId(dockId, 0);
+        KcaDocking.setCompleteTime(dockId, -1);
+        PendingIntent pendingIntent = PendingIntent.getService(
+                getApplicationContext(),
+                getNotificationId(NOTI_DOCK, dockId),
+                new Intent(getApplicationContext(), KcaAlarmService.class),
+                PendingIntent.FLAG_UPDATE_CURRENT
+        );
+        pendingIntent.cancel();
+        alarmManager.cancel(pendingIntent);
     }
 
-    public void setFrontViewNotifier(int type, int id, String content) {
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-        boolean is_landscape = getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE;
-        boolean is_portrait = !is_landscape;
-        boolean no_exp_flag = true;
+    private void processMoraleInfo(int idx, JsonArray deckportdata, boolean set_alarm) {
+        if (KcaBattle.currentFleet == idx) return;
 
-        String notifiTitle = "";
-        String notifiString = "";
-        String expeditionString = "";
+        JsonObject deck = (JsonObject) deckportdata.get(idx);
+        String deck_name = deck.get("api_name").getAsString();
+        long morale_time = KcaMoraleInfo.getMoraleCompleteTime(idx);
+        Intent aIntent = new Intent(getApplicationContext(), KcaAlarmService.class);
+        int nid = getNotificationId(NOTI_MORALE, idx);
+        if (morale_time < 0) {
+            Intent deleteIntent = new Intent(this, KcaAlarmService.class).setAction(DELETE_ACTION.concat(String.valueOf(nid)));
+            startService(deleteIntent);
 
-        if (!prefs.getBoolean(PREF_VPN_ENABLED, false)) {
-            notifiTitle = String.format(getStringWithLocale(R.string.kca_view_normal_format), getStringWithLocale(R.string.app_name), "");
-            notifiString = getStringWithLocale(R.string.kca_view_activate_vpn);
-        } else {
-            String nodeString = "";
-            if (currentNodeInfo.length() > 0) {
-                nodeString = String.format("[%s]", currentNodeInfo.replaceAll("[()]", "").replaceAll("\\s", "/"));
-            }
-            switch (heavyDamagedMode) {
-                case HD_DAMECON:
-                    notifiTitle = String.format(getStringWithLocale(R.string.kca_view_hdmg_damecon_format), getStringWithLocale(R.string.app_name), nodeString);
-                    break;
-                case HD_DANGER:
-                    notifiTitle = String.format(getStringWithLocale(R.string.kca_view_hdmg_format), getStringWithLocale(R.string.app_name), nodeString);
-                    break;
-                default:
-                    notifiTitle = String.format(getStringWithLocale(R.string.kca_view_normal_format), getStringWithLocale(R.string.app_name), nodeString);
-                    break;
-            }
-
-            String expString = "";
-            if (content != null) {
-                notifiString = content;
-            } else {
-                try {
-                    JsonArray deckInfo = new JsonParser().parse(kcaFirstDeckInfo).getAsJsonArray();
-                    List<String> deckInfoStringList = new ArrayList<String>();
-                    for (Object item : deckInfo) {
-                        JsonObject data = (JsonObject) item;
-                        if (is_portrait) {
-                            deckInfoStringList.add(data.get("portrait_value").getAsString());
-                        } else {
-                            deckInfoStringList.add(data.get("landscape_value").getAsString());
-                        }
-                        if (data.get("is_newline").getAsInt() == 1 || (data.has("is_portrait_newline") && is_portrait)) {
-                            notifiString = notifiString.concat(joinStr(deckInfoStringList, " / ")).concat("\n");
-                            deckInfoStringList.clear();
-                        }
-                    }
-                    notifiString = notifiString.concat(joinStr(deckInfoStringList, " / "));
-                } catch (Exception e) {
-                    notifiString = getStringWithLocale(R.string.kca_init_content);
-                }
-            }
+            PendingIntent pendingIntent = PendingIntent.getService(
+                    getApplicationContext(),
+                    nid,
+                    new Intent(getApplicationContext(), KcaAlarmService.class),
+                    PendingIntent.FLAG_UPDATE_CURRENT
+            );
+            pendingIntent.cancel();
+            alarmManager.cancel(pendingIntent);
+        } else if (set_alarm) {
+            setMoraleAlarm(idx, deck_name, morale_time, aIntent);
         }
-
-
-        List<String> kcaExpStrList = new ArrayList<String>();
-        for (int i = 0; i < 3; i++) {
-            if (KcaExpedition.left_time_str[i] != null) {
-                no_exp_flag = false;
-                kcaExpStrList.add(KcaExpedition.left_time_str[i]);
-            }
-        }
-
-        if (isExpViewEnabled()) {
-            if (no_exp_flag) {
-                expeditionString = expeditionString.concat(getStringWithLocale(R.string.kca_view_noexpedition));
-            } else {
-                if (is_landscape) {
-                    expeditionString = expeditionString.concat(getStringWithLocale(R.string.kca_view_expedition_header)).concat(" ");
-                    //expeditionString = expeditionString.concat("\n");
-                }
-                expeditionString = expeditionString.concat(joinStr(kcaExpStrList, " / "));
-            }
-        }
-        notifiManager.notify(getNotificationId(NOTI_FRONT, 1), createViewNotification(notifiTitle, notifiString, expeditionString));
     }
 
-    public static boolean isJSONValid(String jsonInString) {
-        Gson gson = new Gson();
-        try {
-            gson.fromJson(jsonInString, Object.class);
-            return true;
-        } catch (com.google.gson.JsonSyntaxException ex) {
+    private void processAkashiTimerInfo() {
+        int nid = getNotificationId(NOTI_AKASHI, 0);
+        PendingIntent pendingIntent = PendingIntent.getService(
+                getApplicationContext(),
+                nid,
+                new Intent(getApplicationContext(), KcaAlarmService.class),
+                PendingIntent.FLAG_UPDATE_CURRENT
+        );
+        pendingIntent.cancel();
+        alarmManager.cancel(pendingIntent);
+        Intent aIntent = new Intent(getApplicationContext(), KcaAlarmService.class);
+        notifiManager.cancel(nid);
+        setAkashiAlarm(aIntent);
+    }
+
+    private boolean isCurrentPortDeckDataReady() {
+        JsonArray data = dbHelper.getJsonArrayValue(DB_KEY_DECKPORT);
+        if (data == null) {
+            KcaCustomToast customToast = new KcaCustomToast(getApplicationContext());
+            makeToast(getStringWithLocale(R.string.kca_toast_restart_at_kcanotify), Toast.LENGTH_LONG, ContextCompat.getColor(this, R.color.colorPrimaryDark));
+            Log.e("KCA", KcaUtils.format("currentPortDeckData is null"));
             return false;
+        } else {
+            return true;
         }
     }
 
-
-    private int getNotificationId(int type, int n) {
-        return n + 1000 * type;
+    private void setAlarm(long time, PendingIntent alarmIntent, int code, boolean delay) {
+        if (time == -1) {
+            time = System.currentTimeMillis();
+        } else if (delay) {
+            time = time - KcaAlarmService.ALARM_DELAY;
+            if (time < System.currentTimeMillis()) return;
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, time, alarmIntent);
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+            alarmManager.setExact(android.app.AlarmManager.RTC_WAKEUP, time, alarmIntent);
+        } else {
+            alarmManager.set(android.app.AlarmManager.RTC_WAKEUP, time, alarmIntent);
+        }
+        Log.e("KCA", "Alarm set to: " + String.valueOf(time) + " " + String.valueOf(code));
     }
 
-    private class retrieveApiStartData extends AsyncTask<String, Void, String> {
-        public final MediaType FORM_DATA = MediaType.parse("application/x-www-form-urlencoded");
-        OkHttpClient client = new OkHttpClient.Builder().build();
+    public void updateQuestView() {
+        startService(new Intent(getBaseContext(), KcaQuestViewService.class)
+                .setAction(REFRESH_QUESTVIEW_ACTION));
+        if (dbHelper.checkQuestListValid()) QSyncWrite();
+    }
 
-        @Override
-        protected String doInBackground(String... params) {
-            String content = null;
-            content = executeClient(params[0], params[1], params[2]);
+    public void updateFleetView() {
+        startService(new Intent(getBaseContext(), KcaFleetViewService.class)
+                .setAction(REFRESH_FLEETVIEW_ACTION));
+    }
 
-            return content;
+    public void updateAirbasePopupInfo() {
+        if (KcaLandAirBasePopupService.isActive()) {
+            Intent qintent = new Intent(getBaseContext(), KcaLandAirBasePopupService.class);
+            qintent.setAction(KcaLandAirBasePopupService.LAB_DATA_ACTION);
+            startService(qintent);
         }
+    }
 
-        public String executeClient(String token, String method, String data) {
-            if (KcaApiData.isGameDataLoaded()) return null;
-            final KcaCustomToast customToast = new KcaCustomToast(getApplicationContext());
-            kcaFirstDeckInfo = getStringWithLocale(R.string.kca_toast_loading_data);
-            String dataUrl;
-            if (kca_version == null) {
-                dataUrl = String.format(getStringWithLocale(R.string.api_start2_recent_version_link));
-            } else {
-                dataUrl = String.format(getStringWithLocale(R.string.api_start2_version_link), kca_version);
-            }
+    public void recordDropLog(JsonObject data, boolean port_full) {
+        if (isDropLogEnable()) {
+            dropLogger.recordDropLog(data, port_full);
+        }
+    }
 
-            AjaxCallback<String> cb = new AjaxCallback<String>() {
-                @Override
-                public void callback(String url, String data, AjaxStatus status) {
-                    try {
-                        String remote_kca_version = status.getHeader("X-Api-Version");
-                        if (kca_version != null && !kca_version.equals(remote_kca_version)) {
-                            customToast.showToast(getStringWithLocale(R.string.kca_toast_inconsistent_data), Toast.LENGTH_LONG, ContextCompat.getColor(getApplicationContext(), R.color.colorPrimaryDark));
-                        } else {
-                            if (kca_version == null) kca_version = remote_kca_version;
-                            writeCacheData(getApplicationContext(), data.getBytes(), KCANOTIFY_S2_CACHE_FILENAME);
-                            KcaApiData.getKcGameData(gson.fromJson(data, JsonObject.class).getAsJsonObject("api_data"));
-                            setPreferences(getApplicationContext(), "kca_version", kca_version);
+    public void recordResourceLog(JsonArray material_data, boolean is_object) {
+        if (isResourceLogEnable()) {
+            resourceLogger.recordResourceLog(material_data, is_object);
+        }
+    }
+
+    public void showCustomToast(KcaCustomToast toast, String body, int duration, int color) {
+        KcaUtils.showCustomToast(getApplicationContext(), getBaseContext(), toast, body, duration, color);
+    }
+
+    public void QSyncRead() {
+        boolean is_available = getBooleanPreferences(getApplicationContext(), PREF_KCAQSYNC_USE);
+        String qsync_pass = getStringPreferences(getApplicationContext(), PREF_KCAQSYNC_PASS).trim();
+        if (!is_available || qsync_pass.length() == 0) return;
+
+        long recent_check = Long.parseLong(getStringPreferences(getApplicationContext(), PREF_LAST_QUEST_CHECK));
+        int userid = KcaApiData.getUserId();
+        final boolean[] error_flag = {false, false};
+        if (userid > 0) {
+            JsonObject quest_data = new JsonObject();
+            quest_data.addProperty("userid", userid);
+            quest_data.addProperty("pass", qsync_pass);
+            Log.e("KCA", String.valueOf(quest_data.toString().length()));
+            try {
+                final Call<String> qsync_read = kcaQSyncEndpoint.read(KcaUtils.getKcaQSyncHeaderMap(),
+                        KcaUtils.getRSAEncodedString(getApplicationContext(), quest_data.toString()));
+
+                qsync_read.enqueue(new Callback<String>() {
+                    @Override
+                    public void onResponse(Call<String> call, Response<String> response) {
+                        JsonObject response_data = new JsonObject();
+                        if (response.body() != null) {
+                            response_data = gson.fromJson(response.body(), JsonObject.class);
+                            if (response_data.has("status")) {
+                                String result = response_data.get("status").getAsString();
+                                if (result.equals("done")) {
+                                    long recent_ts = response_data.get("timestamp").getAsLong() * 1000;
+                                    if (recent_ts > recent_check) {
+                                        String quest_code = response_data.get("data").getAsString();
+                                        dbHelper.loadQuestDataFromCode(quest_code, true, recent_ts);
+                                    } else {
+                                        error_flag[1] = true;
+                                    }
+                                } else { // error
+                                    String detail = response_data.get("detail").getAsString();
+                                    dbHelper.recordErrorLog(ERROR_TYPE_SERVICE, "qsync_read", "", quest_data.toString(), detail);
+                                    error_flag[0] = true;
+                                }
+                            }
                         }
-                        Log.e("KCA", "Data Load Finished");
-                    } catch (IOException e1) {
-                        customToast.showToast(getStringWithLocale(R.string.kca_toast_ioexceptionerror), Toast.LENGTH_LONG, ContextCompat.getColor(getApplicationContext(), R.color.colorPrimaryDark));
-                        Log.e("KCA", "I/O Error");
                     }
-                    api_start2_loading_flag = false;
-                }
-            };
-            AQuery aq = new AQuery(KcaService.this);
-            cb.header("Referer", "app:/KCA/");
-            cb.header("Content-Type", "application/x-www-form-urlencoded");
-            Log.e("KCA", dataUrl);
-            aq.ajax(dataUrl, String.class, cb);
 
-            return null;
+                    @Override
+                    public void onFailure(Call<String> call, Throwable t) {
+                        dbHelper.recordErrorLog(ERROR_TYPE_SERVICE, "qsync_read", "", "", t.getMessage());
+                        error_flag[0] = true;
+                    }
+                });
+            } catch (Exception e) {
+                dbHelper.recordErrorLog(ERROR_TYPE_SERVICE, "qsync_read", "", "", getStringFromException(e));
+                error_flag[0] = true;
+            }
+        }
+        if (error_flag[0]) {
+            makeToast("failed to sync quest data", Toast.LENGTH_LONG,
+                    ContextCompat.getColor(getApplicationContext(), R.color.colorPrimaryDark));
+        }
+    }
+
+    public void QSyncWrite() {
+        boolean is_available = getBooleanPreferences(getApplicationContext(), PREF_KCAQSYNC_USE);
+        String qsync_pass = getStringPreferences(getApplicationContext(), PREF_KCAQSYNC_PASS).trim();
+        if (!is_available || qsync_pass.length() == 0) return;
+
+        setPreferences(getApplicationContext(), PREF_LAST_QUEST_CHECK,
+                String.valueOf(System.currentTimeMillis()));
+        int userid = KcaApiData.getUserId();
+        final boolean[] error_flag = {false};
+        if (userid > 0) {
+            JsonObject quest_data = new JsonObject();
+            quest_data.addProperty("userid", userid);
+            quest_data.addProperty("data", dbHelper.getCurrentQuestCode());
+            quest_data.addProperty("pass", qsync_pass);
+            Log.e("KCA", String.valueOf(quest_data.toString().length()));
+            try {
+                final Call<String> qsync_write = kcaQSyncEndpoint.write(KcaUtils.getKcaQSyncHeaderMap(),
+                        KcaUtils.getRSAEncodedString(getApplicationContext(), quest_data.toString()));
+
+                qsync_write.enqueue(new Callback<String>() {
+                    @Override
+                    public void onResponse(Call<String> call, Response<String> response) {
+                        JsonObject response_data = new JsonObject();
+                        if (response.body() != null) {
+                            response_data = gson.fromJson(response.body(), JsonObject.class);
+                            if (response_data.has("status")) {
+                                String result = response_data.get("status").getAsString();
+                                if (!result.equals("done")) {
+                                    String detail = response_data.get("detail").getAsString();
+                                    dbHelper.recordErrorLog(ERROR_TYPE_SERVICE, "qsync_write", "", quest_data.toString(), detail);
+                                    error_flag[0] = true;
+                                }
+                            }
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(Call<String> call, Throwable t) {
+                        dbHelper.recordErrorLog(ERROR_TYPE_SERVICE, "qsync_write", "", "", t.getMessage());
+                        error_flag[0] = true;
+                    }
+                });
+            } catch (Exception e) {
+                dbHelper.recordErrorLog(ERROR_TYPE_SERVICE, "qsync_write", "", "", getStringFromException(e));
+                error_flag[0] = true;
+            }
+        }
+        if (error_flag[0]) {
+            makeToast("failed to sync quest data", Toast.LENGTH_LONG,
+                    ContextCompat.getColor(getApplicationContext(), R.color.colorPrimaryDark));
         }
     }
 
@@ -1988,17 +2814,15 @@ public class KcaService extends Service {
             KcaApplication.defaultLocale = newConfig.locale;
         }
         if (getStringPreferences(getApplicationContext(), PREF_KCA_LANGUAGE).startsWith("default")) {
-            LocaleUtils.setLocale(KcaApplication.defaultLocale);
+            LocaleUtils.setLocale(Locale.getDefault());
         } else {
             String[] pref = getStringPreferences(getApplicationContext(), PREF_KCA_LANGUAGE).split("-");
             LocaleUtils.setLocale(new Locale(pref[0], pref[1]));
         }
 
         contextWithLocale = getContextWithLocale(getApplicationContext(), getBaseContext());
-        loadTranslationData(getAssets(), getApplicationContext());
-
-        if (currentPortDeckData != null) processFirstDeckInfo(currentPortDeckData);
-        setFrontViewNotifier(FRONT_NONE, 0, null);
+        loadTranslationData(getApplicationContext());
+        showDataLoadErrorToast(getApplicationContext(), getBaseContext(), getStringWithLocale(R.string.download_check_error));
 
         super.onConfigurationChanged(newConfig);
     }

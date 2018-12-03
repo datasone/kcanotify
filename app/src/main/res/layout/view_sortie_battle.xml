@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/battleviewlayout"
     android:layout_width="match_parent"
@@ -26,37 +27,47 @@
             android:alpha="0.8"
             android:background="@color/colorPrimaryDark"
             android:orientation="vertical"
-            android:paddingBottom="8dp"
-            android:paddingEnd="8dp"
-            android:paddingLeft="8dp"
-            android:paddingRight="8dp"
-            android:paddingStart="8dp"
-            android:paddingTop="8dp">
+            android:padding="@dimen/battleview_padding">
 
             <RelativeLayout
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:layout_marginBottom="8dp"
+                android:layout_marginEnd="12dp"
+                android:layout_marginLeft="12dp"
+                android:layout_marginRight="12dp"
+                android:layout_marginStart="12dp"
                 android:orientation="horizontal"
                 android:paddingBottom="4dp"
                 android:paddingTop="4dp">
 
-                <TextView
-                    android:id="@+id/battle_node"
+                <LinearLayout
+                    android:id="@+id/battle_node_area"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_alignParentRight="true"
                     android:layout_centerVertical="true"
                     android:layout_marginBottom="8dp"
-                    android:layout_marginEnd="16dp"
-                    android:layout_marginRight="16dp"
-                    android:layout_weight="1"
-                    android:minWidth="72dp"
-                    android:paddingLeft="8dp"
-                    android:paddingRight="8dp"
-                    android:textAlignment="center"
-                    android:textColor="@android:color/white"
-                    android:textSize="14dp" />
+                    android:orientation="vertical"
+                    android:paddingBottom="4dp"
+                    android:paddingTop="4dp">
+
+                    <TextView
+                        android:id="@+id/battle_node"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_alignParentRight="true"
+                        android:layout_centerVertical="true"
+                        android:layout_weight="1"
+                        android:minWidth="@dimen/battleview_nodeinfo_minwidth"
+                        android:paddingEnd="@dimen/battleview_padding"
+                        android:paddingLeft="@dimen/battleview_padding"
+                        android:paddingRight="@dimen/battleview_padding"
+                        android:paddingStart="8dp"
+                        android:textAlignment="center"
+                        android:textColor="@android:color/white"
+                        android:textSize="@dimen/battleview_text_label_medium" />
+                </LinearLayout>
 
                 <TextView
                     android:id="@+id/battle_result"
@@ -69,13 +80,11 @@
 
                     android:textAlignment="center"
                     android:textColor="@android:color/white"
-                    android:textSize="18dp" />
+                    android:textSize="@dimen/battleview_text_label_large" />
 
                 <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginLeft="16dp"
-                    android:layout_marginStart="16dp"
                     android:orientation="vertical">
 
                     <LinearLayout
@@ -90,10 +99,10 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_centerVertical="true"
-                            android:minWidth="60dp"
+                            android:minWidth="@dimen/battleview_text_label_width"
                             android:text="@string/engagement_label"
                             android:textColor="@android:color/darker_gray"
-                            android:textSize="10dp" />
+                            android:textSize="@dimen/battleview_text_label_small" />
 
                         <TextView
                             android:id="@+id/battle_engagement"
@@ -101,7 +110,7 @@
                             android:layout_height="wrap_content"
                             android:layout_centerVertical="true"
                             android:textColor="@android:color/white"
-                            android:textSize="10dp" />
+                            android:textSize="@dimen/battleview_text_label_small" />
 
                     </LinearLayout>
 
@@ -119,10 +128,10 @@
                             android:layout_centerVertical="true"
 
 
-                            android:minWidth="60dp"
+                            android:minWidth="@dimen/battleview_text_label_width"
                             android:text="@string/air_label"
                             android:textColor="@android:color/darker_gray"
-                            android:textSize="10dp" />
+                            android:textSize="@dimen/battleview_text_label_small" />
 
                         <TextView
                             android:id="@+id/battle_airpower"
@@ -130,7 +139,7 @@
                             android:layout_height="wrap_content"
                             android:layout_centerVertical="true"
                             android:textColor="@android:color/white"
-                            android:textSize="10dp" />
+                            android:textSize="@dimen/battleview_text_label_small" />
                     </LinearLayout>
 
                     <LinearLayout
@@ -147,18 +156,31 @@
                             android:layout_centerVertical="true"
 
 
-                            android:minWidth="60dp"
+                            android:minWidth="@dimen/battleview_text_label_width"
                             android:text="@string/getship_label"
                             android:textColor="@android:color/darker_gray"
-                            android:textSize="10dp" />
+                            android:textSize="@dimen/battleview_text_label_small" />
 
                         <TextView
                             android:id="@+id/battle_getship"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_centerVertical="true"
+                            android:layout_marginEnd="5dp"
+                            android:layout_marginRight="5dp"
                             android:textColor="@android:color/white"
-                            android:textSize="10dp" />
+                            android:textSize="@dimen/battleview_text_label_small" />
+
+                        <TextView
+                            android:id="@+id/battle_getitem"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_centerVertical="true"
+                            android:layout_marginEnd="5dp"
+                            android:layout_marginRight="5dp"
+                            android:layout_weight="1"
+                            android:textColor="@color/colorItemDrop"
+                            android:textSize="@dimen/battleview_text_label_small" />
 
                     </LinearLayout>
 
@@ -171,8 +193,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:layout_marginBottom="8dp"
-                android:layout_marginLeft="12dp"
-                android:layout_marginRight="12dp"
+                android:layout_marginLeft="8dp"
+                android:layout_marginRight="8dp"
                 android:orientation="horizontal"
                 android:transitionGroup="false"
                 android:weightSum="1">
@@ -181,7 +203,7 @@
                     android:id="@+id/friend_main_fleet"
                     android:layout_width="0dp"
                     android:layout_height="match_parent"
-                    android:layout_weight="0.5"
+                    android:layout_weight="0.25"
                     android:orientation="vertical"
                     android:paddingLeft="4dp"
                     android:paddingRight="4dp">
@@ -208,7 +230,7 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:textColor="#eeeeee"
-                                    android:textSize="10dp" />
+                                    android:textSize="@dimen/battleview_text_label_small" />
 
                                 <TextView
                                     android:id="@+id/friend_fleet_formation"
@@ -219,7 +241,7 @@
                                     android:paddingLeft="8dp"
                                     android:textAlignment="textEnd"
                                     android:textColor="@android:color/darker_gray"
-                                    android:textSize="10dp" />
+                                    android:textSize="@dimen/battleview_text_label_small" />
 
                             </LinearLayout>
 
@@ -243,7 +265,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:textColor="@android:color/darker_gray"
-                            android:textSize="10dp" />
+                            android:textSize="@dimen/battleview_text_label_small" />
 
                     </LinearLayout>
 
@@ -272,27 +294,80 @@
                             android:layout_gravity="center_vertical"
                             android:orientation="horizontal">
 
-                            <TextView
-                                android:id="@+id/fm_1_name"
+                            <LinearLayout
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
-                                android:layout_gravity="center_vertical"
                                 android:layout_weight="0.6"
-                                android:ellipsize="end"
-                                android:maxLines="1"
-                                android:minHeight="10dp"
-                                android:textColor="@android:color/white"
-                                android:textSize="10dp" />
+                                android:orientation="horizontal">
 
-                            <TextView
-                                android:id="@+id/fm_1_hp_txt"
+                                <TextView
+                                    android:id="@+id/fm_1_name"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_marginEnd="4dp"
+                                    android:layout_marginRight="4dp"
+                                    android:ellipsize="end"
+                                    android:maxLines="1"
+                                    android:minHeight="@dimen/battleview_text_c_large"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="@dimen/battleview_text_c_large" />
+
+                                <TextView
+                                    android:id="@+id/fm_1_cond"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_weight="1"
+                                    android:ellipsize="end"
+                                    android:maxLines="1"
+                                    android:minHeight="@dimen/battleview_text_c_large"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="@dimen/battleview_text_c_small" />
+
+                            </LinearLayout>
+
+                            <LinearLayout
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.4"
+                                android:gravity="center_vertical"
                                 android:minHeight="10dp"
-                                android:textColor="@android:color/white"
-                                android:textSize="9dp" />
+                                android:orientation="horizontal">
+
+                                <ImageView
+                                    android:id="@+id/fm_1_dcflag"
+                                    android:layout_width="9dp"
+                                    android:layout_height="9dp"
+                                    android:layout_weight="0"
+                                    android:baselineAlignBottom="false"
+                                    android:src="@mipmap/item_14"
+                                    android:visibility="gone"
+                                    app:srcCompat="@mipmap/item_14" />
+
+                                <TextView
+                                    android:id="@+id/fm_1_hp_txt"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_weight="0"
+                                    android:minHeight="@dimen/battleview_text_c_large"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="@dimen/battleview_text_c_medium" />
+
+                                <TextView
+                                    android:id="@+id/fm_1_exp_count"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_weight="1"
+                                    android:minHeight="@dimen/battleview_text_c_large"
+                                    android:textAlignment="textEnd"
+                                    android:textColor="@color/colorExpCalcMVP"
+                                    android:textSize="@dimen/battleview_text_c_medium" />
+                            </LinearLayout>
+
                         </LinearLayout>
 
                         <LinearLayout
@@ -301,26 +376,46 @@
                             android:layout_gravity="center_vertical"
                             android:orientation="horizontal">
 
-                            <TextView
-                                android:id="@+id/fm_1_lv"
+                            <LinearLayout
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
-                                android:layout_gravity="center_vertical"
                                 android:layout_weight="0.6"
-                                android:minHeight="9dp"
-                                android:textColor="@android:color/white"
-                                android:textSize="9dp" />
+                                android:orientation="horizontal">
+
+                                <TextView
+                                    android:id="@+id/fm_1_lv"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_marginEnd="4dp"
+                                    android:layout_marginRight="4dp"
+                                    android:minHeight="@dimen/battleview_text_c_medium"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="@dimen/battleview_text_c_medium" />
+
+                                <TextView
+                                    android:id="@+id/fm_1_exp"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="bottom"
+                                    android:layout_weight="1"
+                                    android:minHeight="@dimen/battleview_text_c_medium"
+                                    android:singleLine="true"
+                                    android:textColor="@color/grey"
+                                    android:textSize="@dimen/battleview_text_c_xsmall" />
+
+                            </LinearLayout>
 
                             <ProgressBar
                                 android:id="@+id/fm_1_hp_bar"
                                 style="@android:style/Widget.DeviceDefault.ProgressBar.Horizontal"
                                 android:layout_width="0dp"
-                                android:layout_height="4dp"
+                                android:layout_height="@dimen/battleview_hp_height"
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.4"
                                 android:max="100"
                                 android:maxHeight="11dp"
-                                android:minHeight="9dp"
+                                android:minHeight="@dimen/battleview_text_c_medium"
                                 android:mirrorForRtl="false" />
                         </LinearLayout>
                     </LinearLayout>
@@ -338,27 +433,79 @@
                             android:layout_gravity="center_vertical"
                             android:orientation="horizontal">
 
-                            <TextView
-                                android:id="@+id/fm_2_name"
+                            <LinearLayout
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
-                                android:layout_gravity="center_vertical"
                                 android:layout_weight="0.6"
-                                android:ellipsize="end"
-                                android:maxLines="1"
-                                android:minHeight="10dp"
-                                android:textColor="@android:color/white"
-                                android:textSize="10dp" />
+                                android:orientation="horizontal">
 
-                            <TextView
-                                android:id="@+id/fm_2_hp_txt"
+                                <TextView
+                                    android:id="@+id/fm_2_name"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_marginEnd="4dp"
+                                    android:layout_marginRight="4dp"
+                                    android:ellipsize="end"
+                                    android:maxLines="1"
+                                    android:minHeight="@dimen/battleview_text_c_large"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="@dimen/battleview_text_c_large" />
+
+                                <TextView
+                                    android:id="@+id/fm_2_cond"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_weight="1"
+                                    android:ellipsize="end"
+                                    android:maxLines="1"
+                                    android:minHeight="@dimen/battleview_text_c_large"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="@dimen/battleview_text_c_small" />
+
+                            </LinearLayout>
+
+                            <LinearLayout
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.4"
+                                android:gravity="center_vertical"
                                 android:minHeight="10dp"
-                                android:textColor="@android:color/white"
-                                android:textSize="9dp" />
+                                android:orientation="horizontal">
+
+                                <ImageView
+                                    android:id="@+id/fm_2_dcflag"
+                                    android:layout_width="9dp"
+                                    android:layout_height="9dp"
+                                    android:layout_weight="0"
+                                    android:baselineAlignBottom="false"
+                                    android:src="@mipmap/item_14"
+                                    android:visibility="gone"
+                                    app:srcCompat="@mipmap/item_14" />
+
+                                <TextView
+                                    android:id="@+id/fm_2_hp_txt"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_weight="0"
+                                    android:minHeight="@dimen/battleview_text_c_large"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="@dimen/battleview_text_c_medium" />
+
+                                <TextView
+                                    android:id="@+id/fm_2_exp_count"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_weight="1"
+                                    android:minHeight="@dimen/battleview_text_c_large"
+                                    android:textColor="@color/colorExpCalcMVP"
+                                    android:textSize="@dimen/battleview_text_c_medium"
+                                    android:textAlignment="textEnd" />
+                            </LinearLayout>
                         </LinearLayout>
 
                         <LinearLayout
@@ -367,26 +514,46 @@
                             android:layout_gravity="center_vertical"
                             android:orientation="horizontal">
 
-                            <TextView
-                                android:id="@+id/fm_2_lv"
+                            <LinearLayout
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
-                                android:layout_gravity="center_vertical"
                                 android:layout_weight="0.6"
-                                android:minHeight="9dp"
-                                android:textColor="@android:color/white"
-                                android:textSize="9dp" />
+                                android:orientation="horizontal">
+
+                                <TextView
+                                    android:id="@+id/fm_2_lv"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_marginEnd="4dp"
+                                    android:layout_marginRight="4dp"
+                                    android:minHeight="@dimen/battleview_text_c_medium"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="@dimen/battleview_text_c_medium" />
+
+                                <TextView
+                                    android:id="@+id/fm_2_exp"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="bottom"
+                                    android:layout_weight="1"
+                                    android:minHeight="@dimen/battleview_text_c_medium"
+                                    android:singleLine="true"
+                                    android:textColor="@color/grey"
+                                    android:textSize="@dimen/battleview_text_c_xsmall" />
+
+                            </LinearLayout>
 
                             <ProgressBar
                                 android:id="@+id/fm_2_hp_bar"
                                 style="@android:style/Widget.DeviceDefault.ProgressBar.Horizontal"
                                 android:layout_width="0dp"
-                                android:layout_height="4dp"
+                                android:layout_height="@dimen/battleview_hp_height"
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.4"
                                 android:max="100"
                                 android:maxHeight="11dp"
-                                android:minHeight="9dp"
+                                android:minHeight="@dimen/battleview_text_c_medium"
                                 android:mirrorForRtl="false" />
                         </LinearLayout>
                     </LinearLayout>
@@ -404,29 +571,79 @@
                             android:layout_gravity="center_vertical"
                             android:orientation="horizontal">
 
-                            <TextView
-                                android:id="@+id/fm_3_name"
+                            <LinearLayout
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
-
-                                android:layout_gravity="center_vertical"
                                 android:layout_weight="0.6"
-                                android:ellipsize="end"
-                                android:maxLines="1"
-                                android:minHeight="10dp"
-                                android:textColor="@android:color/white"
-                                android:textSize="10dp" />
+                                android:orientation="horizontal">
 
-                            <TextView
-                                android:id="@+id/fm_3_hp_txt"
+                                <TextView
+                                    android:id="@+id/fm_3_name"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_marginEnd="4dp"
+                                    android:layout_marginRight="4dp"
+                                    android:ellipsize="end"
+                                    android:maxLines="1"
+                                    android:minHeight="@dimen/battleview_text_c_large"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="@dimen/battleview_text_c_large" />
+
+                                <TextView
+                                    android:id="@+id/fm_3_cond"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_weight="1"
+                                    android:ellipsize="end"
+                                    android:maxLines="1"
+                                    android:minHeight="@dimen/battleview_text_c_large"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="@dimen/battleview_text_c_small" />
+
+                            </LinearLayout>
+
+                            <LinearLayout
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
-
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.4"
+                                android:gravity="center_vertical"
                                 android:minHeight="10dp"
-                                android:textColor="@android:color/white"
-                                android:textSize="9dp" />
+                                android:orientation="horizontal">
+
+                                <ImageView
+                                    android:id="@+id/fm_3_dcflag"
+                                    android:layout_width="9dp"
+                                    android:layout_height="9dp"
+                                    android:layout_weight="0"
+                                    android:baselineAlignBottom="false"
+                                    android:src="@mipmap/item_14"
+                                    android:visibility="gone"
+                                    app:srcCompat="@mipmap/item_14" />
+
+                                <TextView
+                                    android:id="@+id/fm_3_hp_txt"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_weight="0"
+                                    android:minHeight="@dimen/battleview_text_c_large"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="@dimen/battleview_text_c_medium" />
+
+                                <TextView
+                                    android:id="@+id/fm_3_exp_count"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_weight="1"
+                                    android:minHeight="@dimen/battleview_text_c_large"
+                                    android:textAlignment="textEnd"
+                                    android:textColor="@color/colorExpCalcMVP"
+                                    android:textSize="@dimen/battleview_text_c_medium" />
+                            </LinearLayout>
                         </LinearLayout>
 
                         <LinearLayout
@@ -435,28 +652,47 @@
                             android:layout_gravity="center_vertical"
                             android:orientation="horizontal">
 
-                            <TextView
-                                android:id="@+id/fm_3_lv"
+                            <LinearLayout
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
-
-                                android:layout_gravity="center_vertical"
                                 android:layout_weight="0.6"
-                                android:minHeight="9dp"
-                                android:textColor="@android:color/white"
-                                android:textSize="9dp" />
+                                android:orientation="horizontal">
+
+                                <TextView
+                                    android:id="@+id/fm_3_lv"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_marginEnd="4dp"
+                                    android:layout_marginRight="4dp"
+                                    android:minHeight="@dimen/battleview_text_c_medium"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="@dimen/battleview_text_c_medium" />
+
+                                <TextView
+                                    android:id="@+id/fm_3_exp"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="bottom"
+                                    android:layout_weight="1"
+                                    android:minHeight="@dimen/battleview_text_c_medium"
+                                    android:singleLine="true"
+                                    android:textColor="@color/grey"
+                                    android:textSize="@dimen/battleview_text_c_xsmall" />
+
+                            </LinearLayout>
 
                             <ProgressBar
                                 android:id="@+id/fm_3_hp_bar"
                                 style="@android:style/Widget.DeviceDefault.ProgressBar.Horizontal"
                                 android:layout_width="0dp"
-                                android:layout_height="4dp"
+                                android:layout_height="@dimen/battleview_hp_height"
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.4"
                                 android:elevation="1dp"
                                 android:max="100"
                                 android:maxHeight="11dp"
-                                android:minHeight="9dp"
+                                android:minHeight="@dimen/battleview_text_c_medium"
                                 android:mirrorForRtl="false" />
                         </LinearLayout>
                     </LinearLayout>
@@ -474,29 +710,79 @@
                             android:layout_gravity="center_vertical"
                             android:orientation="horizontal">
 
-                            <TextView
-                                android:id="@+id/fm_4_name"
+                            <LinearLayout
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
-
-                                android:layout_gravity="center_vertical"
                                 android:layout_weight="0.6"
-                                android:ellipsize="end"
-                                android:maxLines="1"
-                                android:minHeight="10dp"
-                                android:textColor="@android:color/white"
-                                android:textSize="10dp" />
+                                android:orientation="horizontal">
 
-                            <TextView
-                                android:id="@+id/fm_4_hp_txt"
+                                <TextView
+                                    android:id="@+id/fm_4_name"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_marginEnd="4dp"
+                                    android:layout_marginRight="4dp"
+                                    android:ellipsize="end"
+                                    android:maxLines="1"
+                                    android:minHeight="@dimen/battleview_text_c_large"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="@dimen/battleview_text_c_large" />
+
+                                <TextView
+                                    android:id="@+id/fm_4_cond"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_weight="1"
+                                    android:ellipsize="end"
+                                    android:maxLines="1"
+                                    android:minHeight="@dimen/battleview_text_c_large"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="@dimen/battleview_text_c_small" />
+
+                            </LinearLayout>
+
+                            <LinearLayout
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
-
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.4"
+                                android:gravity="center_vertical"
                                 android:minHeight="10dp"
-                                android:textColor="@android:color/white"
-                                android:textSize="9dp" />
+                                android:orientation="horizontal">
+
+                                <ImageView
+                                    android:id="@+id/fm_4_dcflag"
+                                    android:layout_width="9dp"
+                                    android:layout_height="9dp"
+                                    android:layout_weight="0"
+                                    android:baselineAlignBottom="false"
+                                    android:src="@mipmap/item_14"
+                                    android:visibility="gone"
+                                    app:srcCompat="@mipmap/item_14" />
+
+                                <TextView
+                                    android:id="@+id/fm_4_hp_txt"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_weight="0"
+                                    android:minHeight="@dimen/battleview_text_c_large"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="@dimen/battleview_text_c_medium" />
+
+                                <TextView
+                                    android:id="@+id/fm_4_exp_count"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_weight="1"
+                                    android:minHeight="@dimen/battleview_text_c_large"
+                                    android:textAlignment="textEnd"
+                                    android:textColor="@color/colorExpCalcMVP"
+                                    android:textSize="@dimen/battleview_text_c_medium" />
+                            </LinearLayout>
                         </LinearLayout>
 
                         <LinearLayout
@@ -505,28 +791,47 @@
                             android:layout_gravity="center_vertical"
                             android:orientation="horizontal">
 
-                            <TextView
-                                android:id="@+id/fm_4_lv"
+                            <LinearLayout
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
-
-                                android:layout_gravity="center_vertical"
                                 android:layout_weight="0.6"
-                                android:minHeight="9dp"
-                                android:textColor="@android:color/white"
-                                android:textSize="9dp" />
+                                android:orientation="horizontal">
+
+                                <TextView
+                                    android:id="@+id/fm_4_lv"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_marginEnd="4dp"
+                                    android:layout_marginRight="4dp"
+                                    android:minHeight="@dimen/battleview_text_c_medium"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="@dimen/battleview_text_c_medium" />
+
+                                <TextView
+                                    android:id="@+id/fm_4_exp"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="bottom"
+                                    android:layout_weight="1"
+                                    android:minHeight="@dimen/battleview_text_c_medium"
+                                    android:singleLine="true"
+                                    android:textColor="@color/grey"
+                                    android:textSize="@dimen/battleview_text_c_xsmall" />
+
+                            </LinearLayout>
 
                             <ProgressBar
                                 android:id="@+id/fm_4_hp_bar"
                                 style="@android:style/Widget.DeviceDefault.ProgressBar.Horizontal"
                                 android:layout_width="0dp"
-                                android:layout_height="4dp"
+                                android:layout_height="@dimen/battleview_hp_height"
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.4"
                                 android:elevation="1dp"
                                 android:max="100"
                                 android:maxHeight="11dp"
-                                android:minHeight="9dp"
+                                android:minHeight="@dimen/battleview_text_c_medium"
                                 android:mirrorForRtl="false" />
                         </LinearLayout>
                     </LinearLayout>
@@ -544,29 +849,79 @@
                             android:layout_gravity="center_vertical"
                             android:orientation="horizontal">
 
-                            <TextView
-                                android:id="@+id/fm_5_name"
+                            <LinearLayout
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
-
-                                android:layout_gravity="center_vertical"
                                 android:layout_weight="0.6"
-                                android:ellipsize="end"
-                                android:maxLines="1"
-                                android:minHeight="10dp"
-                                android:textColor="@android:color/white"
-                                android:textSize="10dp" />
+                                android:orientation="horizontal">
 
-                            <TextView
-                                android:id="@+id/fm_5_hp_txt"
+                                <TextView
+                                    android:id="@+id/fm_5_name"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_marginEnd="4dp"
+                                    android:layout_marginRight="4dp"
+                                    android:ellipsize="end"
+                                    android:maxLines="1"
+                                    android:minHeight="@dimen/battleview_text_c_large"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="@dimen/battleview_text_c_large" />
+
+                                <TextView
+                                    android:id="@+id/fm_5_cond"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_weight="1"
+                                    android:ellipsize="end"
+                                    android:maxLines="1"
+                                    android:minHeight="@dimen/battleview_text_c_large"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="@dimen/battleview_text_c_small" />
+
+                            </LinearLayout>
+
+                            <LinearLayout
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
-
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.4"
+                                android:gravity="center_vertical"
                                 android:minHeight="10dp"
-                                android:textColor="@android:color/white"
-                                android:textSize="9dp" />
+                                android:orientation="horizontal">
+
+                                <ImageView
+                                    android:id="@+id/fm_5_dcflag"
+                                    android:layout_width="9dp"
+                                    android:layout_height="9dp"
+                                    android:layout_weight="0"
+                                    android:baselineAlignBottom="false"
+                                    android:src="@mipmap/item_14"
+                                    android:visibility="gone"
+                                    app:srcCompat="@mipmap/item_14" />
+
+                                <TextView
+                                    android:id="@+id/fm_5_hp_txt"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_weight="0"
+                                    android:minHeight="@dimen/battleview_text_c_large"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="@dimen/battleview_text_c_medium" />
+
+                                <TextView
+                                    android:id="@+id/fm_5_exp_count"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_weight="1"
+                                    android:minHeight="@dimen/battleview_text_c_large"
+                                    android:textAlignment="textEnd"
+                                    android:textColor="@color/colorExpCalcMVP"
+                                    android:textSize="@dimen/battleview_text_c_medium" />
+                            </LinearLayout>
                         </LinearLayout>
 
                         <LinearLayout
@@ -575,28 +930,47 @@
                             android:layout_gravity="center_vertical"
                             android:orientation="horizontal">
 
-                            <TextView
-                                android:id="@+id/fm_5_lv"
+                            <LinearLayout
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
-
-                                android:layout_gravity="center_vertical"
                                 android:layout_weight="0.6"
-                                android:minHeight="9dp"
-                                android:textColor="@android:color/white"
-                                android:textSize="9dp" />
+                                android:orientation="horizontal">
+
+                                <TextView
+                                    android:id="@+id/fm_5_lv"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_marginEnd="4dp"
+                                    android:layout_marginRight="4dp"
+                                    android:minHeight="@dimen/battleview_text_c_medium"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="@dimen/battleview_text_c_medium" />
+
+                                <TextView
+                                    android:id="@+id/fm_5_exp"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="bottom"
+                                    android:layout_weight="1"
+                                    android:minHeight="@dimen/battleview_text_c_medium"
+                                    android:singleLine="true"
+                                    android:textColor="@color/grey"
+                                    android:textSize="@dimen/battleview_text_c_xsmall" />
+
+                            </LinearLayout>
 
                             <ProgressBar
                                 android:id="@+id/fm_5_hp_bar"
                                 style="@android:style/Widget.DeviceDefault.ProgressBar.Horizontal"
                                 android:layout_width="0dp"
-                                android:layout_height="4dp"
+                                android:layout_height="@dimen/battleview_hp_height"
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.4"
                                 android:elevation="1dp"
                                 android:max="100"
                                 android:maxHeight="11dp"
-                                android:minHeight="9dp"
+                                android:minHeight="@dimen/battleview_text_c_medium"
                                 android:mirrorForRtl="false" />
                         </LinearLayout>
                     </LinearLayout>
@@ -614,29 +988,79 @@
                             android:layout_gravity="center_vertical"
                             android:orientation="horizontal">
 
-                            <TextView
-                                android:id="@+id/fm_6_name"
+                            <LinearLayout
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
-
-                                android:layout_gravity="center_vertical"
                                 android:layout_weight="0.6"
-                                android:ellipsize="end"
-                                android:maxLines="1"
-                                android:minHeight="10dp"
-                                android:textColor="@android:color/white"
-                                android:textSize="10dp" />
+                                android:orientation="horizontal">
 
-                            <TextView
-                                android:id="@+id/fm_6_hp_txt"
+                                <TextView
+                                    android:id="@+id/fm_6_name"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_marginEnd="4dp"
+                                    android:layout_marginRight="4dp"
+                                    android:ellipsize="end"
+                                    android:maxLines="1"
+                                    android:minHeight="@dimen/battleview_text_c_large"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="@dimen/battleview_text_c_large" />
+
+                                <TextView
+                                    android:id="@+id/fm_6_cond"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_weight="1"
+                                    android:ellipsize="end"
+                                    android:maxLines="1"
+                                    android:minHeight="@dimen/battleview_text_c_large"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="@dimen/battleview_text_c_small" />
+
+                            </LinearLayout>
+
+                            <LinearLayout
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
-
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.4"
+                                android:gravity="center_vertical"
                                 android:minHeight="10dp"
-                                android:textColor="@android:color/white"
-                                android:textSize="9dp" />
+                                android:orientation="horizontal">
+
+                                <ImageView
+                                    android:id="@+id/fm_6_dcflag"
+                                    android:layout_width="9dp"
+                                    android:layout_height="9dp"
+                                    android:layout_weight="0"
+                                    android:baselineAlignBottom="false"
+                                    android:src="@mipmap/item_14"
+                                    android:visibility="gone"
+                                    app:srcCompat="@mipmap/item_14" />
+
+                                <TextView
+                                    android:id="@+id/fm_6_hp_txt"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_weight="0"
+                                    android:minHeight="@dimen/battleview_text_c_large"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="@dimen/battleview_text_c_medium" />
+
+                                <TextView
+                                    android:id="@+id/fm_6_exp_count"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_weight="1"
+                                    android:minHeight="@dimen/battleview_text_c_large"
+                                    android:textAlignment="textEnd"
+                                    android:textColor="@color/colorExpCalcMVP"
+                                    android:textSize="@dimen/battleview_text_c_medium" />
+                            </LinearLayout>
                         </LinearLayout>
 
                         <LinearLayout
@@ -645,29 +1069,191 @@
                             android:layout_gravity="center_vertical"
                             android:orientation="horizontal">
 
-                            <TextView
-                                android:id="@+id/fm_6_lv"
+                            <LinearLayout
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
-
-                                android:layout_gravity="center_vertical"
                                 android:layout_weight="0.6"
-                                android:minHeight="9dp"
-                                android:textColor="@android:color/white"
-                                android:textSize="9dp" />
+                                android:orientation="horizontal">
+
+                                <TextView
+                                    android:id="@+id/fm_6_lv"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_marginEnd="4dp"
+                                    android:layout_marginRight="4dp"
+                                    android:minHeight="@dimen/battleview_text_c_medium"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="@dimen/battleview_text_c_medium" />
+
+                                <TextView
+                                    android:id="@+id/fm_6_exp"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="bottom"
+                                    android:layout_weight="1"
+                                    android:minHeight="@dimen/battleview_text_c_medium"
+                                    android:singleLine="true"
+                                    android:textColor="@color/grey"
+                                    android:textSize="@dimen/battleview_text_c_xsmall" />
+
+                            </LinearLayout>
 
                             <ProgressBar
                                 android:id="@+id/fm_6_hp_bar"
                                 style="@android:style/Widget.DeviceDefault.ProgressBar.Horizontal"
                                 android:layout_width="0dp"
-                                android:layout_height="4dp"
+                                android:layout_height="@dimen/battleview_hp_height"
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.4"
                                 android:elevation="1dp"
                                 android:max="100"
                                 android:maxHeight="11dp"
-                                android:minHeight="9dp"
+                                android:minHeight="@dimen/battleview_text_c_medium"
                                 android:mirrorForRtl="false" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/fm_7"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:layout_marginTop="2dp"
+                        android:orientation="vertical"
+                        android:visibility="gone">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="0.6"
+                                android:orientation="horizontal">
+
+                                <TextView
+                                    android:id="@+id/fm_7_name"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_marginEnd="4dp"
+                                    android:layout_marginRight="4dp"
+                                    android:ellipsize="end"
+                                    android:maxLines="1"
+                                    android:minHeight="@dimen/battleview_text_c_large"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="@dimen/battleview_text_c_large" />
+
+                                <TextView
+                                    android:id="@+id/fm_7_cond"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_weight="1"
+                                    android:ellipsize="end"
+                                    android:maxLines="1"
+                                    android:minHeight="@dimen/battleview_text_c_large"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="@dimen/battleview_text_c_small" />
+
+                            </LinearLayout>
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="center_vertical"
+                                android:layout_weight="0.4"
+                                android:gravity="center_vertical"
+                                android:minHeight="10dp"
+                                android:orientation="horizontal">
+
+                                <ImageView
+                                    android:id="@+id/fm_7_dcflag"
+                                    android:layout_width="9dp"
+                                    android:layout_height="9dp"
+                                    android:layout_weight="0"
+                                    android:baselineAlignBottom="false"
+                                    android:src="@mipmap/item_14"
+                                    android:visibility="gone"
+                                    app:srcCompat="@mipmap/item_14" />
+
+                                <TextView
+                                    android:id="@+id/fm_7_hp_txt"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_weight="0"
+                                    android:minHeight="@dimen/battleview_text_c_large"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="@dimen/battleview_text_c_medium" />
+
+                                <TextView
+                                    android:id="@+id/fm_7_exp_count"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_weight="1"
+                                    android:minHeight="@dimen/battleview_text_c_large"
+                                    android:textAlignment="textEnd"
+                                    android:textColor="@color/colorExpCalcMVP"
+                                    android:textSize="@dimen/battleview_text_c_medium" />
+                            </LinearLayout>
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="0.6"
+                                android:orientation="horizontal">
+
+                                <TextView
+                                    android:id="@+id/fm_7_lv"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_marginEnd="4dp"
+                                    android:layout_marginRight="4dp"
+                                    android:minHeight="@dimen/battleview_text_c_medium"
+                                    android:text="Lv 92"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="@dimen/battleview_text_c_medium" />
+
+                                <TextView
+                                    android:id="@+id/fm_7_exp"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="bottom"
+                                    android:layout_weight="1"
+                                    android:minHeight="@dimen/battleview_text_c_medium"
+                                    android:singleLine="true"
+                                    android:text="1000000"
+                                    android:textColor="@color/grey"
+                                    android:textSize="@dimen/battleview_text_c_xsmall" />
+
+                            </LinearLayout>
+
+                            <ProgressBar
+                                android:id="@+id/fm_7_hp_bar"
+                                style="@android:style/Widget.DeviceDefault.ProgressBar.Horizontal"
+                                android:layout_width="0dp"
+                                android:layout_height="@dimen/battleview_hp_height"
+                                android:layout_gravity="center_vertical"
+                                android:layout_weight="0.4"
+                                android:elevation="1dp"
+                                android:max="100"
+                                android:maxHeight="11dp"
+                                android:minHeight="@dimen/battleview_text_c_medium"
+                                android:mirrorForRtl="false"
+                                android:progress="85" />
                         </LinearLayout>
                     </LinearLayout>
                 </LinearLayout>
@@ -681,7 +1267,7 @@
 
                     android:paddingLeft="4dp"
                     android:paddingRight="4dp"
-                    android:visibility="gone">
+                    android:visibility="visible">
 
                     <LinearLayout
                         android:id="@+id/friend_combined_fleet_info1"
@@ -706,7 +1292,7 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:textColor="#eeeeee"
-                                    android:textSize="10dp" />
+                                    android:textSize="@dimen/battleview_text_label_small" />
 
                                 <TextView
                                     android:id="@+id/friend_combined_fleet_formation"
@@ -717,7 +1303,7 @@
                                     android:paddingLeft="8dp"
                                     android:textAlignment="textEnd"
                                     android:textColor="@android:color/darker_gray"
-                                    android:textSize="10dp" />
+                                    android:textSize="@dimen/battleview_text_label_small" />
 
                             </LinearLayout>
 
@@ -741,7 +1327,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
                                 android:textColor="@android:color/darker_gray"
-                                android:textSize="10dp" />
+                                android:textSize="@dimen/battleview_text_label_small" />
 
                         </LinearLayout>
 
@@ -772,29 +1358,79 @@
                             android:layout_gravity="center_vertical"
                             android:orientation="horizontal">
 
-                            <TextView
-                                android:id="@+id/fs_1_name"
+                            <LinearLayout
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
-
-                                android:layout_gravity="center_vertical"
                                 android:layout_weight="0.6"
-                                android:ellipsize="end"
-                                android:maxLines="1"
-                                android:minHeight="10dp"
-                                android:textColor="@android:color/white"
-                                android:textSize="10dp" />
+                                android:orientation="horizontal">
 
-                            <TextView
-                                android:id="@+id/fs_1_hp_txt"
+                                <TextView
+                                    android:id="@+id/fs_1_name"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_marginEnd="4dp"
+                                    android:layout_marginRight="4dp"
+                                    android:ellipsize="end"
+                                    android:maxLines="1"
+                                    android:minHeight="@dimen/battleview_text_c_large"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="@dimen/battleview_text_c_large" />
+
+                                <TextView
+                                    android:id="@+id/fs_1_cond"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_weight="1"
+                                    android:ellipsize="end"
+                                    android:maxLines="1"
+                                    android:minHeight="@dimen/battleview_text_c_large"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="@dimen/battleview_text_c_small" />
+
+                            </LinearLayout>
+
+                            <LinearLayout
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
-
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.4"
+                                android:gravity="center_vertical"
                                 android:minHeight="10dp"
-                                android:textColor="@android:color/white"
-                                android:textSize="9dp" />
+                                android:orientation="horizontal">
+
+                                <ImageView
+                                    android:id="@+id/fs_1_dcflag"
+                                    android:layout_width="9dp"
+                                    android:layout_height="9dp"
+                                    android:layout_weight="0"
+                                    android:baselineAlignBottom="false"
+                                    android:src="@mipmap/item_14"
+                                    android:visibility="gone"
+                                    app:srcCompat="@mipmap/item_14" />
+
+                                <TextView
+                                    android:id="@+id/fs_1_hp_txt"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_weight="0"
+                                    android:minHeight="@dimen/battleview_text_c_large"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="@dimen/battleview_text_c_medium" />
+
+                                <TextView
+                                    android:id="@+id/fs_1_exp_count"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_weight="1"
+                                    android:minHeight="@dimen/battleview_text_c_large"
+                                    android:textAlignment="textEnd"
+                                    android:textColor="@color/colorExpCalcMVP"
+                                    android:textSize="@dimen/battleview_text_c_medium" />
+                            </LinearLayout>
                         </LinearLayout>
 
                         <LinearLayout
@@ -803,28 +1439,47 @@
                             android:layout_gravity="center_vertical"
                             android:orientation="horizontal">
 
-                            <TextView
-                                android:id="@+id/fs_1_lv"
+                            <LinearLayout
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
-
-                                android:layout_gravity="center_vertical"
                                 android:layout_weight="0.6"
-                                android:minHeight="9dp"
-                                android:textColor="@android:color/white"
-                                android:textSize="9dp" />
+                                android:orientation="horizontal">
+
+                                <TextView
+                                    android:id="@+id/fs_1_lv"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_marginEnd="4dp"
+                                    android:layout_marginRight="4dp"
+                                    android:minHeight="@dimen/battleview_text_c_medium"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="@dimen/battleview_text_c_medium" />
+
+                                <TextView
+                                    android:id="@+id/fs_1_exp"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="bottom"
+                                    android:layout_weight="1"
+                                    android:minHeight="@dimen/battleview_text_c_medium"
+                                    android:singleLine="true"
+                                    android:textColor="@color/grey"
+                                    android:textSize="@dimen/battleview_text_c_xsmall" />
+
+                            </LinearLayout>
 
                             <ProgressBar
                                 android:id="@+id/fs_1_hp_bar"
                                 style="@android:style/Widget.DeviceDefault.ProgressBar.Horizontal"
                                 android:layout_width="0dp"
-                                android:layout_height="4dp"
+                                android:layout_height="@dimen/battleview_hp_height"
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.4"
                                 android:elevation="1dp"
                                 android:max="100"
                                 android:maxHeight="11dp"
-                                android:minHeight="9dp"
+                                android:minHeight="@dimen/battleview_text_c_medium"
                                 android:mirrorForRtl="false" />
                         </LinearLayout>
                     </LinearLayout>
@@ -842,29 +1497,79 @@
                             android:layout_gravity="center_vertical"
                             android:orientation="horizontal">
 
-                            <TextView
-                                android:id="@+id/fs_2_name"
+                            <LinearLayout
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
-
-                                android:layout_gravity="center_vertical"
                                 android:layout_weight="0.6"
-                                android:ellipsize="end"
-                                android:maxLines="1"
-                                android:minHeight="10dp"
-                                android:textColor="@android:color/white"
-                                android:textSize="10dp" />
+                                android:orientation="horizontal">
 
-                            <TextView
-                                android:id="@+id/fs_2_hp_txt"
+                                <TextView
+                                    android:id="@+id/fs_2_name"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_marginEnd="4dp"
+                                    android:layout_marginRight="4dp"
+                                    android:ellipsize="end"
+                                    android:maxLines="1"
+                                    android:minHeight="@dimen/battleview_text_c_large"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="@dimen/battleview_text_c_large" />
+
+                                <TextView
+                                    android:id="@+id/fs_2_cond"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_weight="1"
+                                    android:ellipsize="end"
+                                    android:maxLines="1"
+                                    android:minHeight="@dimen/battleview_text_c_large"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="@dimen/battleview_text_c_small" />
+
+                            </LinearLayout>
+
+                            <LinearLayout
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
-
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.4"
+                                android:gravity="center_vertical"
                                 android:minHeight="10dp"
-                                android:textColor="@android:color/white"
-                                android:textSize="9dp" />
+                                android:orientation="horizontal">
+
+                                <ImageView
+                                    android:id="@+id/fs_2_dcflag"
+                                    android:layout_width="9dp"
+                                    android:layout_height="9dp"
+                                    android:layout_weight="0"
+                                    android:baselineAlignBottom="false"
+                                    android:src="@mipmap/item_14"
+                                    android:visibility="gone"
+                                    app:srcCompat="@mipmap/item_14" />
+
+                                <TextView
+                                    android:id="@+id/fs_2_hp_txt"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_weight="0"
+                                    android:minHeight="@dimen/battleview_text_c_large"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="@dimen/battleview_text_c_medium" />
+
+                                <TextView
+                                    android:id="@+id/fs_2_exp_count"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_weight="1"
+                                    android:minHeight="@dimen/battleview_text_c_large"
+                                    android:textAlignment="textEnd"
+                                    android:textColor="@color/colorExpCalcMVP"
+                                    android:textSize="@dimen/battleview_text_c_medium" />
+                            </LinearLayout>
                         </LinearLayout>
 
                         <LinearLayout
@@ -873,28 +1578,47 @@
                             android:layout_gravity="center_vertical"
                             android:orientation="horizontal">
 
-                            <TextView
-                                android:id="@+id/fs_2_lv"
+                            <LinearLayout
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
-
-                                android:layout_gravity="center_vertical"
                                 android:layout_weight="0.6"
-                                android:minHeight="9dp"
-                                android:textColor="@android:color/white"
-                                android:textSize="9dp" />
+                                android:orientation="horizontal">
+
+                                <TextView
+                                    android:id="@+id/fs_2_lv"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_marginEnd="4dp"
+                                    android:layout_marginRight="4dp"
+                                    android:minHeight="@dimen/battleview_text_c_medium"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="@dimen/battleview_text_c_medium" />
+
+                                <TextView
+                                    android:id="@+id/fs_2_exp"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="bottom"
+                                    android:layout_weight="1"
+                                    android:minHeight="@dimen/battleview_text_c_medium"
+                                    android:singleLine="true"
+                                    android:textColor="@color/grey"
+                                    android:textSize="@dimen/battleview_text_c_xsmall" />
+
+                            </LinearLayout>
 
                             <ProgressBar
                                 android:id="@+id/fs_2_hp_bar"
                                 style="@android:style/Widget.DeviceDefault.ProgressBar.Horizontal"
                                 android:layout_width="0dp"
-                                android:layout_height="4dp"
+                                android:layout_height="@dimen/battleview_hp_height"
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.4"
                                 android:elevation="1dp"
                                 android:max="100"
                                 android:maxHeight="11dp"
-                                android:minHeight="9dp"
+                                android:minHeight="@dimen/battleview_text_c_medium"
                                 android:mirrorForRtl="false" />
                         </LinearLayout>
                     </LinearLayout>
@@ -912,29 +1636,79 @@
                             android:layout_gravity="center_vertical"
                             android:orientation="horizontal">
 
-                            <TextView
-                                android:id="@+id/fs_3_name"
+                            <LinearLayout
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
-
-                                android:layout_gravity="center_vertical"
                                 android:layout_weight="0.6"
-                                android:ellipsize="end"
-                                android:maxLines="1"
-                                android:minHeight="10dp"
-                                android:textColor="@android:color/white"
-                                android:textSize="10dp" />
+                                android:orientation="horizontal">
 
-                            <TextView
-                                android:id="@+id/fs_3_hp_txt"
+                                <TextView
+                                    android:id="@+id/fs_3_name"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_marginEnd="4dp"
+                                    android:layout_marginRight="4dp"
+                                    android:ellipsize="end"
+                                    android:maxLines="1"
+                                    android:minHeight="@dimen/battleview_text_c_large"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="@dimen/battleview_text_c_large" />
+
+                                <TextView
+                                    android:id="@+id/fs_3_cond"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_weight="1"
+                                    android:ellipsize="end"
+                                    android:maxLines="1"
+                                    android:minHeight="@dimen/battleview_text_c_large"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="@dimen/battleview_text_c_small" />
+
+                            </LinearLayout>
+
+                            <LinearLayout
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
-
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.4"
+                                android:gravity="center_vertical"
                                 android:minHeight="10dp"
-                                android:textColor="@android:color/white"
-                                android:textSize="9dp" />
+                                android:orientation="horizontal">
+
+                                <ImageView
+                                    android:id="@+id/fs_3_dcflag"
+                                    android:layout_width="9dp"
+                                    android:layout_height="9dp"
+                                    android:layout_weight="0"
+                                    android:baselineAlignBottom="false"
+                                    android:src="@mipmap/item_14"
+                                    android:visibility="gone"
+                                    app:srcCompat="@mipmap/item_14" />
+
+                                <TextView
+                                    android:id="@+id/fs_3_hp_txt"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_weight="0"
+                                    android:minHeight="@dimen/battleview_text_c_large"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="@dimen/battleview_text_c_medium" />
+
+                                <TextView
+                                    android:id="@+id/fs_3_exp_count"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_weight="1"
+                                    android:minHeight="@dimen/battleview_text_c_large"
+                                    android:textAlignment="textEnd"
+                                    android:textColor="@color/colorExpCalcMVP"
+                                    android:textSize="@dimen/battleview_text_c_medium" />
+                            </LinearLayout>
                         </LinearLayout>
 
                         <LinearLayout
@@ -943,28 +1717,47 @@
                             android:layout_gravity="center_vertical"
                             android:orientation="horizontal">
 
-                            <TextView
-                                android:id="@+id/fs_3_lv"
+                            <LinearLayout
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
-
-                                android:layout_gravity="center_vertical"
                                 android:layout_weight="0.6"
-                                android:minHeight="9dp"
-                                android:textColor="@android:color/white"
-                                android:textSize="9dp" />
+                                android:orientation="horizontal">
+
+                                <TextView
+                                    android:id="@+id/fs_3_lv"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_marginEnd="4dp"
+                                    android:layout_marginRight="4dp"
+                                    android:minHeight="@dimen/battleview_text_c_medium"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="@dimen/battleview_text_c_medium" />
+
+                                <TextView
+                                    android:id="@+id/fs_3_exp"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="bottom"
+                                    android:layout_weight="1"
+                                    android:minHeight="@dimen/battleview_text_c_medium"
+                                    android:singleLine="true"
+                                    android:textColor="@color/grey"
+                                    android:textSize="@dimen/battleview_text_c_xsmall" />
+
+                            </LinearLayout>
 
                             <ProgressBar
                                 android:id="@+id/fs_3_hp_bar"
                                 style="@android:style/Widget.DeviceDefault.ProgressBar.Horizontal"
                                 android:layout_width="0dp"
-                                android:layout_height="4dp"
+                                android:layout_height="@dimen/battleview_hp_height"
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.4"
                                 android:elevation="1dp"
                                 android:max="100"
                                 android:maxHeight="11dp"
-                                android:minHeight="9dp"
+                                android:minHeight="@dimen/battleview_text_c_medium"
                                 android:mirrorForRtl="false" />
                         </LinearLayout>
                     </LinearLayout>
@@ -982,29 +1775,79 @@
                             android:layout_gravity="center_vertical"
                             android:orientation="horizontal">
 
-                            <TextView
-                                android:id="@+id/fs_4_name"
+                            <LinearLayout
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
-
-                                android:layout_gravity="center_vertical"
                                 android:layout_weight="0.6"
-                                android:ellipsize="end"
-                                android:maxLines="1"
-                                android:minHeight="10dp"
-                                android:textColor="@android:color/white"
-                                android:textSize="10dp" />
+                                android:orientation="horizontal">
 
-                            <TextView
-                                android:id="@+id/fs_4_hp_txt"
+                                <TextView
+                                    android:id="@+id/fs_4_name"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_marginEnd="4dp"
+                                    android:layout_marginRight="4dp"
+                                    android:ellipsize="end"
+                                    android:maxLines="1"
+                                    android:minHeight="@dimen/battleview_text_c_large"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="@dimen/battleview_text_c_large" />
+
+                                <TextView
+                                    android:id="@+id/fs_4_cond"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_weight="1"
+                                    android:ellipsize="end"
+                                    android:maxLines="1"
+                                    android:minHeight="@dimen/battleview_text_c_large"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="@dimen/battleview_text_c_small" />
+
+                            </LinearLayout>
+
+                            <LinearLayout
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
-
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.4"
+                                android:gravity="center_vertical"
                                 android:minHeight="10dp"
-                                android:textColor="@android:color/white"
-                                android:textSize="9dp" />
+                                android:orientation="horizontal">
+
+                                <ImageView
+                                    android:id="@+id/fs_4_dcflag"
+                                    android:layout_width="9dp"
+                                    android:layout_height="9dp"
+                                    android:layout_weight="0"
+                                    android:baselineAlignBottom="false"
+                                    android:src="@mipmap/item_14"
+                                    android:visibility="gone"
+                                    app:srcCompat="@mipmap/item_14" />
+
+                                <TextView
+                                    android:id="@+id/fs_4_hp_txt"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_weight="0"
+                                    android:minHeight="@dimen/battleview_text_c_large"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="@dimen/battleview_text_c_medium" />
+
+                                <TextView
+                                    android:id="@+id/fs_4_exp_count"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_weight="1"
+                                    android:minHeight="@dimen/battleview_text_c_large"
+                                    android:textAlignment="textEnd"
+                                    android:textColor="@color/colorExpCalcMVP"
+                                    android:textSize="@dimen/battleview_text_c_medium" />
+                            </LinearLayout>
                         </LinearLayout>
 
                         <LinearLayout
@@ -1013,28 +1856,47 @@
                             android:layout_gravity="center_vertical"
                             android:orientation="horizontal">
 
-                            <TextView
-                                android:id="@+id/fs_4_lv"
+                            <LinearLayout
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
-
-                                android:layout_gravity="center_vertical"
                                 android:layout_weight="0.6"
-                                android:minHeight="9dp"
-                                android:textColor="@android:color/white"
-                                android:textSize="9dp" />
+                                android:orientation="horizontal">
+
+                                <TextView
+                                    android:id="@+id/fs_4_lv"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_marginEnd="4dp"
+                                    android:layout_marginRight="4dp"
+                                    android:minHeight="@dimen/battleview_text_c_medium"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="@dimen/battleview_text_c_medium" />
+
+                                <TextView
+                                    android:id="@+id/fs_4_exp"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="bottom"
+                                    android:layout_weight="1"
+                                    android:minHeight="@dimen/battleview_text_c_medium"
+                                    android:singleLine="true"
+                                    android:textColor="@color/grey"
+                                    android:textSize="@dimen/battleview_text_c_xsmall" />
+
+                            </LinearLayout>
 
                             <ProgressBar
                                 android:id="@+id/fs_4_hp_bar"
                                 style="@android:style/Widget.DeviceDefault.ProgressBar.Horizontal"
                                 android:layout_width="0dp"
-                                android:layout_height="4dp"
+                                android:layout_height="@dimen/battleview_hp_height"
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.4"
                                 android:elevation="1dp"
                                 android:max="100"
                                 android:maxHeight="11dp"
-                                android:minHeight="9dp"
+                                android:minHeight="@dimen/battleview_text_c_medium"
                                 android:mirrorForRtl="false" />
                         </LinearLayout>
                     </LinearLayout>
@@ -1052,29 +1914,79 @@
                             android:layout_gravity="center_vertical"
                             android:orientation="horizontal">
 
-                            <TextView
-                                android:id="@+id/fs_5_name"
+                            <LinearLayout
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
-
-                                android:layout_gravity="center_vertical"
                                 android:layout_weight="0.6"
-                                android:ellipsize="end"
-                                android:maxLines="1"
-                                android:minHeight="10dp"
-                                android:textColor="@android:color/white"
-                                android:textSize="10dp" />
+                                android:orientation="horizontal">
 
-                            <TextView
-                                android:id="@+id/fs_5_hp_txt"
+                                <TextView
+                                    android:id="@+id/fs_5_name"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_marginEnd="4dp"
+                                    android:layout_marginRight="4dp"
+                                    android:ellipsize="end"
+                                    android:maxLines="1"
+                                    android:minHeight="@dimen/battleview_text_c_large"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="@dimen/battleview_text_c_large" />
+
+                                <TextView
+                                    android:id="@+id/fs_5_cond"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_weight="1"
+                                    android:ellipsize="end"
+                                    android:maxLines="1"
+                                    android:minHeight="@dimen/battleview_text_c_large"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="@dimen/battleview_text_c_small" />
+
+                            </LinearLayout>
+
+                            <LinearLayout
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
-
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.4"
+                                android:gravity="center_vertical"
                                 android:minHeight="10dp"
-                                android:textColor="@android:color/white"
-                                android:textSize="9dp" />
+                                android:orientation="horizontal">
+
+                                <ImageView
+                                    android:id="@+id/fs_5_dcflag"
+                                    android:layout_width="9dp"
+                                    android:layout_height="9dp"
+                                    android:layout_weight="0"
+                                    android:baselineAlignBottom="false"
+                                    android:src="@mipmap/item_14"
+                                    android:visibility="gone"
+                                    app:srcCompat="@mipmap/item_14" />
+
+                                <TextView
+                                    android:id="@+id/fs_5_hp_txt"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_weight="0"
+                                    android:minHeight="@dimen/battleview_text_c_large"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="@dimen/battleview_text_c_medium" />
+
+                                <TextView
+                                    android:id="@+id/fs_5_exp_count"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_weight="1"
+                                    android:minHeight="@dimen/battleview_text_c_large"
+                                    android:textAlignment="textEnd"
+                                    android:textColor="@color/colorExpCalcMVP"
+                                    android:textSize="@dimen/battleview_text_c_medium" />
+                            </LinearLayout>
                         </LinearLayout>
 
                         <LinearLayout
@@ -1083,28 +1995,47 @@
                             android:layout_gravity="center_vertical"
                             android:orientation="horizontal">
 
-                            <TextView
-                                android:id="@+id/fs_5_lv"
+                            <LinearLayout
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
-
-                                android:layout_gravity="center_vertical"
                                 android:layout_weight="0.6"
-                                android:minHeight="9dp"
-                                android:textColor="@android:color/white"
-                                android:textSize="9dp" />
+                                android:orientation="horizontal">
+
+                                <TextView
+                                    android:id="@+id/fs_5_lv"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_marginEnd="4dp"
+                                    android:layout_marginRight="4dp"
+                                    android:minHeight="@dimen/battleview_text_c_medium"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="@dimen/battleview_text_c_medium" />
+
+                                <TextView
+                                    android:id="@+id/fs_5_exp"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="bottom"
+                                    android:layout_weight="1"
+                                    android:minHeight="@dimen/battleview_text_c_medium"
+                                    android:singleLine="true"
+                                    android:textColor="@color/grey"
+                                    android:textSize="@dimen/battleview_text_c_xsmall" />
+
+                            </LinearLayout>
 
                             <ProgressBar
                                 android:id="@+id/fs_5_hp_bar"
                                 style="@android:style/Widget.DeviceDefault.ProgressBar.Horizontal"
                                 android:layout_width="0dp"
-                                android:layout_height="4dp"
+                                android:layout_height="@dimen/battleview_hp_height"
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.4"
                                 android:elevation="1dp"
                                 android:max="100"
                                 android:maxHeight="11dp"
-                                android:minHeight="9dp"
+                                android:minHeight="@dimen/battleview_text_c_medium"
                                 android:mirrorForRtl="false" />
                         </LinearLayout>
                     </LinearLayout>
@@ -1122,29 +2053,79 @@
                             android:layout_gravity="center_vertical"
                             android:orientation="horizontal">
 
-                            <TextView
-                                android:id="@+id/fs_6_name"
+                            <LinearLayout
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
-
-                                android:layout_gravity="center_vertical"
                                 android:layout_weight="0.6"
-                                android:ellipsize="end"
-                                android:maxLines="1"
-                                android:minHeight="10dp"
-                                android:textColor="@android:color/white"
-                                android:textSize="10dp" />
+                                android:orientation="horizontal">
 
-                            <TextView
-                                android:id="@+id/fs_6_hp_txt"
+                                <TextView
+                                    android:id="@+id/fs_6_name"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_marginEnd="4dp"
+                                    android:layout_marginRight="4dp"
+                                    android:ellipsize="end"
+                                    android:maxLines="1"
+                                    android:minHeight="@dimen/battleview_text_c_large"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="@dimen/battleview_text_c_large" />
+
+                                <TextView
+                                    android:id="@+id/fs_6_cond"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_weight="1"
+                                    android:ellipsize="end"
+                                    android:maxLines="1"
+                                    android:minHeight="@dimen/battleview_text_c_large"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="@dimen/battleview_text_c_small" />
+
+                            </LinearLayout>
+
+                            <LinearLayout
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
-
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.4"
+                                android:gravity="center_vertical"
                                 android:minHeight="10dp"
-                                android:textColor="@android:color/white"
-                                android:textSize="9dp" />
+                                android:orientation="horizontal">
+
+                                <ImageView
+                                    android:id="@+id/fs_6_dcflag"
+                                    android:layout_width="9dp"
+                                    android:layout_height="9dp"
+                                    android:layout_weight="0"
+                                    android:baselineAlignBottom="false"
+                                    android:src="@mipmap/item_14"
+                                    android:visibility="gone"
+                                    app:srcCompat="@mipmap/item_14" />
+
+                                <TextView
+                                    android:id="@+id/fs_6_hp_txt"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_weight="0"
+                                    android:minHeight="@dimen/battleview_text_c_large"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="@dimen/battleview_text_c_medium" />
+
+                                <TextView
+                                    android:id="@+id/fs_6_exp_count"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_weight="1"
+                                    android:minHeight="@dimen/battleview_text_c_large"
+                                    android:textAlignment="textEnd"
+                                    android:textColor="@color/colorExpCalcMVP"
+                                    android:textSize="@dimen/battleview_text_c_medium" />
+                            </LinearLayout>
                         </LinearLayout>
 
                         <LinearLayout
@@ -1153,28 +2134,47 @@
                             android:layout_gravity="center_vertical"
                             android:orientation="horizontal">
 
-                            <TextView
-                                android:id="@+id/fs_6_lv"
+                            <LinearLayout
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
-
-                                android:layout_gravity="center_vertical"
                                 android:layout_weight="0.6"
-                                android:minHeight="9dp"
-                                android:textColor="@android:color/white"
-                                android:textSize="9dp" />
+                                android:orientation="horizontal">
+
+                                <TextView
+                                    android:id="@+id/fs_6_lv"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_marginEnd="4dp"
+                                    android:layout_marginRight="4dp"
+                                    android:minHeight="@dimen/battleview_text_c_medium"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="@dimen/battleview_text_c_medium" />
+
+                                <TextView
+                                    android:id="@+id/fs_6_exp"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="bottom"
+                                    android:layout_weight="1"
+                                    android:minHeight="@dimen/battleview_text_c_medium"
+                                    android:singleLine="true"
+                                    android:textColor="@color/grey"
+                                    android:textSize="@dimen/battleview_text_c_xsmall" />
+
+                            </LinearLayout>
 
                             <ProgressBar
                                 android:id="@+id/fs_6_hp_bar"
                                 style="@android:style/Widget.DeviceDefault.ProgressBar.Horizontal"
                                 android:layout_width="0dp"
-                                android:layout_height="4dp"
+                                android:layout_height="@dimen/battleview_hp_height"
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.4"
                                 android:elevation="1dp"
                                 android:max="100"
                                 android:maxHeight="11dp"
-                                android:minHeight="9dp"
+                                android:minHeight="@dimen/battleview_text_c_medium"
                                 android:mirrorForRtl="false" />
                         </LinearLayout>
                     </LinearLayout>
@@ -1213,7 +2213,7 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:textColor="#eeeeee"
-                                    android:textSize="10dp" />
+                                    android:textSize="@dimen/battleview_text_label_small" />
 
                                 <TextView
                                     android:id="@+id/enemy_combined_fleet_formation"
@@ -1224,7 +2224,7 @@
                                     android:paddingLeft="8dp"
                                     android:textAlignment="textEnd"
                                     android:textColor="@android:color/darker_gray"
-                                    android:textSize="10dp" />
+                                    android:textSize="@dimen/battleview_text_label_small" />
 
                             </LinearLayout>
 
@@ -1249,7 +2249,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:textColor="@android:color/darker_gray"
-                            android:textSize="10dp" />
+                            android:textSize="@dimen/battleview_text_label_small" />
 
                     </LinearLayout>
 
@@ -1293,9 +2293,9 @@
                                     android:layout_height="wrap_content"
                                     android:ellipsize="end"
                                     android:maxLines="1"
-                                    android:minHeight="10dp"
+                                    android:minHeight="@dimen/battleview_text_c_large"
                                     android:textColor="@android:color/white"
-                                    android:textSize="10dp" />
+                                    android:textSize="@dimen/battleview_text_c_large" />
 
                                 <TextView
                                     android:id="@+id/es_1_yomi"
@@ -1304,7 +2304,7 @@
                                     android:layout_marginLeft="4dp"
 
                                     android:textColor="@android:color/white"
-                                    android:textSize="9dp" />
+                                    android:textSize="@dimen/battleview_text_c_medium" />
                             </LinearLayout>
 
                             <TextView
@@ -1313,9 +2313,9 @@
                                 android:layout_height="wrap_content"
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.4"
-                                android:minHeight="10dp"
+                                android:minHeight="@dimen/battleview_text_c_large"
                                 android:textColor="@android:color/white"
-                                android:textSize="9dp" />
+                                android:textSize="@dimen/battleview_text_c_medium" />
                         </LinearLayout>
 
                         <LinearLayout
@@ -1330,20 +2330,20 @@
                                 android:layout_height="wrap_content"
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.6"
-                                android:minHeight="9dp"
+                                android:minHeight="@dimen/battleview_text_c_medium"
                                 android:textColor="@android:color/white"
-                                android:textSize="9dp" />
+                                android:textSize="@dimen/battleview_text_c_medium" />
 
                             <ProgressBar
                                 android:id="@+id/es_1_hp_bar"
                                 style="@android:style/Widget.DeviceDefault.ProgressBar.Horizontal"
                                 android:layout_width="0dp"
-                                android:layout_height="4dp"
+                                android:layout_height="@dimen/battleview_hp_height"
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.4"
                                 android:max="100"
                                 android:maxHeight="11dp"
-                                android:minHeight="9dp"
+                                android:minHeight="@dimen/battleview_text_c_medium"
                                 android:mirrorForRtl="false" />
                         </LinearLayout>
                     </LinearLayout>
@@ -1376,9 +2376,9 @@
                                     android:layout_height="wrap_content"
                                     android:ellipsize="end"
                                     android:maxLines="1"
-                                    android:minHeight="10dp"
+                                    android:minHeight="@dimen/battleview_text_c_large"
                                     android:textColor="@android:color/white"
-                                    android:textSize="10dp" />
+                                    android:textSize="@dimen/battleview_text_c_large" />
 
                                 <TextView
                                     android:id="@+id/es_2_yomi"
@@ -1386,7 +2386,7 @@
                                     android:layout_height="wrap_content"
                                     android:layout_marginLeft="4dp"
                                     android:textColor="@android:color/white"
-                                    android:textSize="9dp" />
+                                    android:textSize="@dimen/battleview_text_c_medium" />
                             </LinearLayout>
 
                             <TextView
@@ -1395,9 +2395,9 @@
                                 android:layout_height="wrap_content"
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.4"
-                                android:minHeight="10dp"
+                                android:minHeight="@dimen/battleview_text_c_large"
                                 android:textColor="@android:color/white"
-                                android:textSize="9dp" />
+                                android:textSize="@dimen/battleview_text_c_medium" />
                         </LinearLayout>
 
                         <LinearLayout
@@ -1412,20 +2412,20 @@
                                 android:layout_height="wrap_content"
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.6"
-                                android:minHeight="9dp"
+                                android:minHeight="@dimen/battleview_text_c_medium"
                                 android:textColor="@android:color/white"
-                                android:textSize="9dp" />
+                                android:textSize="@dimen/battleview_text_c_medium" />
 
                             <ProgressBar
                                 android:id="@+id/es_2_hp_bar"
                                 style="@android:style/Widget.DeviceDefault.ProgressBar.Horizontal"
                                 android:layout_width="0dp"
-                                android:layout_height="4dp"
+                                android:layout_height="@dimen/battleview_hp_height"
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.4"
                                 android:max="100"
                                 android:maxHeight="11dp"
-                                android:minHeight="9dp"
+                                android:minHeight="@dimen/battleview_text_c_medium"
                                 android:mirrorForRtl="false" />
                         </LinearLayout>
                     </LinearLayout>
@@ -1458,9 +2458,9 @@
                                     android:layout_height="wrap_content"
                                     android:ellipsize="end"
                                     android:maxLines="1"
-                                    android:minHeight="10dp"
+                                    android:minHeight="@dimen/battleview_text_c_large"
                                     android:textColor="@android:color/white"
-                                    android:textSize="10dp" />
+                                    android:textSize="@dimen/battleview_text_c_large" />
 
                                 <TextView
                                     android:id="@+id/es_3_yomi"
@@ -1469,7 +2469,7 @@
                                     android:layout_marginLeft="4dp"
 
                                     android:textColor="@android:color/white"
-                                    android:textSize="9dp" />
+                                    android:textSize="@dimen/battleview_text_c_medium" />
                             </LinearLayout>
 
                             <TextView
@@ -1478,9 +2478,9 @@
                                 android:layout_height="wrap_content"
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.4"
-                                android:minHeight="10dp"
+                                android:minHeight="@dimen/battleview_text_c_large"
                                 android:textColor="@android:color/white"
-                                android:textSize="9dp" />
+                                android:textSize="@dimen/battleview_text_c_medium" />
                         </LinearLayout>
 
                         <LinearLayout
@@ -1495,20 +2495,20 @@
                                 android:layout_height="wrap_content"
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.6"
-                                android:minHeight="9dp"
+                                android:minHeight="@dimen/battleview_text_c_medium"
                                 android:textColor="@android:color/white"
-                                android:textSize="9dp" />
+                                android:textSize="@dimen/battleview_text_c_medium" />
 
                             <ProgressBar
                                 android:id="@+id/es_3_hp_bar"
                                 style="@android:style/Widget.DeviceDefault.ProgressBar.Horizontal"
                                 android:layout_width="0dp"
-                                android:layout_height="4dp"
+                                android:layout_height="@dimen/battleview_hp_height"
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.4"
                                 android:max="100"
                                 android:maxHeight="11dp"
-                                android:minHeight="9dp"
+                                android:minHeight="@dimen/battleview_text_c_medium"
                                 android:mirrorForRtl="false" />
                         </LinearLayout>
                     </LinearLayout>
@@ -1541,9 +2541,9 @@
                                     android:layout_height="wrap_content"
                                     android:ellipsize="end"
                                     android:maxLines="1"
-                                    android:minHeight="10dp"
+                                    android:minHeight="@dimen/battleview_text_c_large"
                                     android:textColor="@android:color/white"
-                                    android:textSize="10dp" />
+                                    android:textSize="@dimen/battleview_text_c_large" />
 
                                 <TextView
                                     android:id="@+id/es_4_yomi"
@@ -1552,7 +2552,7 @@
                                     android:layout_marginLeft="4dp"
 
                                     android:textColor="@android:color/white"
-                                    android:textSize="9dp" />
+                                    android:textSize="@dimen/battleview_text_c_medium" />
                             </LinearLayout>
 
                             <TextView
@@ -1561,9 +2561,9 @@
                                 android:layout_height="wrap_content"
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.4"
-                                android:minHeight="10dp"
+                                android:minHeight="@dimen/battleview_text_c_large"
                                 android:textColor="@android:color/white"
-                                android:textSize="9dp" />
+                                android:textSize="@dimen/battleview_text_c_medium" />
                         </LinearLayout>
 
                         <LinearLayout
@@ -1578,20 +2578,20 @@
                                 android:layout_height="wrap_content"
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.6"
-                                android:minHeight="9dp"
+                                android:minHeight="@dimen/battleview_text_c_medium"
                                 android:textColor="@android:color/white"
-                                android:textSize="9dp" />
+                                android:textSize="@dimen/battleview_text_c_medium" />
 
                             <ProgressBar
                                 android:id="@+id/es_4_hp_bar"
                                 style="@android:style/Widget.DeviceDefault.ProgressBar.Horizontal"
                                 android:layout_width="0dp"
-                                android:layout_height="4dp"
+                                android:layout_height="@dimen/battleview_hp_height"
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.4"
                                 android:max="100"
                                 android:maxHeight="11dp"
-                                android:minHeight="9dp"
+                                android:minHeight="@dimen/battleview_text_c_medium"
                                 android:mirrorForRtl="false" />
                         </LinearLayout>
                     </LinearLayout>
@@ -1624,9 +2624,9 @@
                                     android:layout_height="wrap_content"
                                     android:ellipsize="end"
                                     android:maxLines="1"
-                                    android:minHeight="10dp"
+                                    android:minHeight="@dimen/battleview_text_c_large"
                                     android:textColor="@android:color/white"
-                                    android:textSize="10dp" />
+                                    android:textSize="@dimen/battleview_text_c_large" />
 
                                 <TextView
                                     android:id="@+id/es_5_yomi"
@@ -1634,7 +2634,7 @@
                                     android:layout_height="wrap_content"
                                     android:layout_marginLeft="4dp"
                                     android:textColor="@android:color/white"
-                                    android:textSize="9dp" />
+                                    android:textSize="@dimen/battleview_text_c_medium" />
                             </LinearLayout>
 
                             <TextView
@@ -1643,9 +2643,9 @@
                                 android:layout_height="wrap_content"
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.4"
-                                android:minHeight="10dp"
+                                android:minHeight="@dimen/battleview_text_c_large"
                                 android:textColor="@android:color/white"
-                                android:textSize="9dp" />
+                                android:textSize="@dimen/battleview_text_c_medium" />
                         </LinearLayout>
 
                         <LinearLayout
@@ -1660,20 +2660,20 @@
                                 android:layout_height="wrap_content"
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.6"
-                                android:minHeight="9dp"
+                                android:minHeight="@dimen/battleview_text_c_medium"
                                 android:textColor="@android:color/white"
-                                android:textSize="9dp" />
+                                android:textSize="@dimen/battleview_text_c_medium" />
 
                             <ProgressBar
                                 android:id="@+id/es_5_hp_bar"
                                 style="@android:style/Widget.DeviceDefault.ProgressBar.Horizontal"
                                 android:layout_width="0dp"
-                                android:layout_height="4dp"
+                                android:layout_height="@dimen/battleview_hp_height"
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.4"
                                 android:max="100"
                                 android:maxHeight="11dp"
-                                android:minHeight="9dp"
+                                android:minHeight="@dimen/battleview_text_c_medium"
                                 android:mirrorForRtl="false" />
                         </LinearLayout>
                     </LinearLayout>
@@ -1706,9 +2706,9 @@
                                     android:layout_height="wrap_content"
                                     android:ellipsize="end"
                                     android:maxLines="1"
-                                    android:minHeight="10dp"
+                                    android:minHeight="@dimen/battleview_text_c_large"
                                     android:textColor="@android:color/white"
-                                    android:textSize="10dp" />
+                                    android:textSize="@dimen/battleview_text_c_large" />
 
                                 <TextView
                                     android:id="@+id/es_6_yomi"
@@ -1717,7 +2717,7 @@
                                     android:layout_marginLeft="4dp"
 
                                     android:textColor="@android:color/white"
-                                    android:textSize="9dp" />
+                                    android:textSize="@dimen/battleview_text_c_medium" />
                             </LinearLayout>
 
                             <TextView
@@ -1726,9 +2726,9 @@
                                 android:layout_height="wrap_content"
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.4"
-                                android:minHeight="10dp"
+                                android:minHeight="@dimen/battleview_text_c_large"
                                 android:textColor="@android:color/white"
-                                android:textSize="9dp" />
+                                android:textSize="@dimen/battleview_text_c_medium" />
                         </LinearLayout>
 
                         <LinearLayout
@@ -1743,20 +2743,20 @@
                                 android:layout_height="wrap_content"
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.6"
-                                android:minHeight="9dp"
+                                android:minHeight="@dimen/battleview_text_c_medium"
                                 android:textColor="@android:color/white"
-                                android:textSize="9dp" />
+                                android:textSize="@dimen/battleview_text_c_medium" />
 
                             <ProgressBar
                                 android:id="@+id/es_6_hp_bar"
                                 style="@android:style/Widget.DeviceDefault.ProgressBar.Horizontal"
                                 android:layout_width="0dp"
-                                android:layout_height="4dp"
+                                android:layout_height="@dimen/battleview_hp_height"
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.4"
                                 android:max="100"
                                 android:maxHeight="11dp"
-                                android:minHeight="9dp"
+                                android:minHeight="@dimen/battleview_text_c_medium"
                                 android:mirrorForRtl="false" />
                         </LinearLayout>
                     </LinearLayout>
@@ -1794,7 +2794,7 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:textColor="#eeeeee"
-                                    android:textSize="10dp" />
+                                    android:textSize="@dimen/battleview_text_label_small" />
 
                                 <TextView
                                     android:id="@+id/enemy_fleet_formation"
@@ -1805,7 +2805,7 @@
                                     android:paddingLeft="8dp"
                                     android:textAlignment="textEnd"
                                     android:textColor="@android:color/darker_gray"
-                                    android:textSize="10dp" />
+                                    android:textSize="@dimen/battleview_text_label_small" />
 
                             </LinearLayout>
 
@@ -1830,7 +2830,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:textColor="@android:color/darker_gray"
-                            android:textSize="10dp" />
+                            android:textSize="@dimen/battleview_text_label_small" />
 
                     </LinearLayout>
 
@@ -1874,9 +2874,9 @@
                                     android:layout_height="wrap_content"
                                     android:ellipsize="end"
                                     android:maxLines="1"
-                                    android:minHeight="10dp"
+                                    android:minHeight="@dimen/battleview_text_c_large"
                                     android:textColor="@android:color/white"
-                                    android:textSize="10dp" />
+                                    android:textSize="@dimen/battleview_text_c_large" />
 
                                 <TextView
                                     android:id="@+id/em_1_yomi"
@@ -1884,7 +2884,7 @@
                                     android:layout_height="wrap_content"
                                     android:layout_marginLeft="4dp"
                                     android:textColor="@android:color/white"
-                                    android:textSize="9dp" />
+                                    android:textSize="@dimen/battleview_text_c_medium" />
                             </LinearLayout>
 
                             <TextView
@@ -1894,9 +2894,9 @@
 
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.4"
-                                android:minHeight="10dp"
+                                android:minHeight="@dimen/battleview_text_c_large"
                                 android:textColor="@android:color/white"
-                                android:textSize="9dp" />
+                                android:textSize="@dimen/battleview_text_c_medium" />
                         </LinearLayout>
 
                         <LinearLayout
@@ -1911,20 +2911,20 @@
                                 android:layout_height="wrap_content"
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.6"
-                                android:minHeight="9dp"
+                                android:minHeight="@dimen/battleview_text_c_medium"
                                 android:textColor="@android:color/white"
-                                android:textSize="9dp" />
+                                android:textSize="@dimen/battleview_text_c_medium" />
 
                             <ProgressBar
                                 android:id="@+id/em_1_hp_bar"
                                 style="@android:style/Widget.DeviceDefault.ProgressBar.Horizontal"
                                 android:layout_width="0dp"
-                                android:layout_height="4dp"
+                                android:layout_height="@dimen/battleview_hp_height"
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.4"
                                 android:max="100"
                                 android:maxHeight="11dp"
-                                android:minHeight="9dp"
+                                android:minHeight="@dimen/battleview_text_c_medium"
                                 android:mirrorForRtl="false" />
                         </LinearLayout>
                     </LinearLayout>
@@ -1957,9 +2957,9 @@
                                     android:layout_height="wrap_content"
                                     android:ellipsize="end"
                                     android:maxLines="1"
-                                    android:minHeight="10dp"
+                                    android:minHeight="@dimen/battleview_text_c_large"
                                     android:textColor="@android:color/white"
-                                    android:textSize="10dp" />
+                                    android:textSize="@dimen/battleview_text_c_large" />
 
                                 <TextView
                                     android:id="@+id/em_2_yomi"
@@ -1968,7 +2968,7 @@
                                     android:layout_marginLeft="4dp"
 
                                     android:textColor="@android:color/white"
-                                    android:textSize="9dp" />
+                                    android:textSize="@dimen/battleview_text_c_medium" />
                             </LinearLayout>
 
                             <TextView
@@ -1977,9 +2977,9 @@
                                 android:layout_height="wrap_content"
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.4"
-                                android:minHeight="10dp"
+                                android:minHeight="@dimen/battleview_text_c_large"
                                 android:textColor="@android:color/white"
-                                android:textSize="9dp" />
+                                android:textSize="@dimen/battleview_text_c_medium" />
                         </LinearLayout>
 
                         <LinearLayout
@@ -1994,20 +2994,20 @@
                                 android:layout_height="wrap_content"
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.6"
-                                android:minHeight="9dp"
+                                android:minHeight="@dimen/battleview_text_c_medium"
                                 android:textColor="@android:color/white"
-                                android:textSize="9dp" />
+                                android:textSize="@dimen/battleview_text_c_medium" />
 
                             <ProgressBar
                                 android:id="@+id/em_2_hp_bar"
                                 style="@android:style/Widget.DeviceDefault.ProgressBar.Horizontal"
                                 android:layout_width="0dp"
-                                android:layout_height="4dp"
+                                android:layout_height="@dimen/battleview_hp_height"
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.4"
                                 android:max="100"
                                 android:maxHeight="11dp"
-                                android:minHeight="9dp"
+                                android:minHeight="@dimen/battleview_text_c_medium"
                                 android:mirrorForRtl="false" />
                         </LinearLayout>
                     </LinearLayout>
@@ -2040,9 +3040,9 @@
                                     android:layout_height="wrap_content"
                                     android:ellipsize="end"
                                     android:maxLines="1"
-                                    android:minHeight="10dp"
+                                    android:minHeight="@dimen/battleview_text_c_large"
                                     android:textColor="@android:color/white"
-                                    android:textSize="10dp" />
+                                    android:textSize="@dimen/battleview_text_c_large" />
 
                                 <TextView
                                     android:id="@+id/em_3_yomi"
@@ -2051,7 +3051,7 @@
                                     android:layout_marginLeft="4dp"
 
                                     android:textColor="@android:color/white"
-                                    android:textSize="9dp" />
+                                    android:textSize="@dimen/battleview_text_c_medium" />
                             </LinearLayout>
 
                             <TextView
@@ -2060,9 +3060,9 @@
                                 android:layout_height="wrap_content"
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.4"
-                                android:minHeight="10dp"
+                                android:minHeight="@dimen/battleview_text_c_large"
                                 android:textColor="@android:color/white"
-                                android:textSize="9dp" />
+                                android:textSize="@dimen/battleview_text_c_medium" />
                         </LinearLayout>
 
                         <LinearLayout
@@ -2077,20 +3077,20 @@
                                 android:layout_height="wrap_content"
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.6"
-                                android:minHeight="9dp"
+                                android:minHeight="@dimen/battleview_text_c_medium"
                                 android:textColor="@android:color/white"
-                                android:textSize="9dp" />
+                                android:textSize="@dimen/battleview_text_c_medium" />
 
                             <ProgressBar
                                 android:id="@+id/em_3_hp_bar"
                                 style="@android:style/Widget.DeviceDefault.ProgressBar.Horizontal"
                                 android:layout_width="0dp"
-                                android:layout_height="4dp"
+                                android:layout_height="@dimen/battleview_hp_height"
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.4"
                                 android:max="100"
                                 android:maxHeight="11dp"
-                                android:minHeight="9dp"
+                                android:minHeight="@dimen/battleview_text_c_medium"
                                 android:mirrorForRtl="false" />
                         </LinearLayout>
                     </LinearLayout>
@@ -2123,9 +3123,9 @@
                                     android:layout_height="wrap_content"
                                     android:ellipsize="end"
                                     android:maxLines="1"
-                                    android:minHeight="10dp"
+                                    android:minHeight="@dimen/battleview_text_c_large"
                                     android:textColor="@android:color/white"
-                                    android:textSize="10dp" />
+                                    android:textSize="@dimen/battleview_text_c_large" />
 
                                 <TextView
                                     android:id="@+id/em_4_yomi"
@@ -2134,7 +3134,7 @@
                                     android:layout_marginLeft="4dp"
 
                                     android:textColor="@android:color/white"
-                                    android:textSize="9dp" />
+                                    android:textSize="@dimen/battleview_text_c_medium" />
                             </LinearLayout>
 
                             <TextView
@@ -2143,9 +3143,9 @@
                                 android:layout_height="wrap_content"
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.4"
-                                android:minHeight="10dp"
+                                android:minHeight="@dimen/battleview_text_c_large"
                                 android:textColor="@android:color/white"
-                                android:textSize="9dp" />
+                                android:textSize="@dimen/battleview_text_c_medium" />
                         </LinearLayout>
 
                         <LinearLayout
@@ -2160,20 +3160,20 @@
                                 android:layout_height="wrap_content"
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.6"
-                                android:minHeight="9dp"
+                                android:minHeight="@dimen/battleview_text_c_medium"
                                 android:textColor="@android:color/white"
-                                android:textSize="9dp" />
+                                android:textSize="@dimen/battleview_text_c_medium" />
 
                             <ProgressBar
                                 android:id="@+id/em_4_hp_bar"
                                 style="@android:style/Widget.DeviceDefault.ProgressBar.Horizontal"
                                 android:layout_width="0dp"
-                                android:layout_height="4dp"
+                                android:layout_height="@dimen/battleview_hp_height"
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.4"
                                 android:max="100"
                                 android:maxHeight="11dp"
-                                android:minHeight="9dp"
+                                android:minHeight="@dimen/battleview_text_c_medium"
                                 android:mirrorForRtl="false" />
                         </LinearLayout>
                     </LinearLayout>
@@ -2206,9 +3206,9 @@
                                     android:layout_height="wrap_content"
                                     android:ellipsize="end"
                                     android:maxLines="1"
-                                    android:minHeight="10dp"
+                                    android:minHeight="@dimen/battleview_text_c_large"
                                     android:textColor="@android:color/white"
-                                    android:textSize="10dp" />
+                                    android:textSize="@dimen/battleview_text_c_large" />
 
                                 <TextView
                                     android:id="@+id/em_5_yomi"
@@ -2217,7 +3217,7 @@
                                     android:layout_marginLeft="4dp"
 
                                     android:textColor="@android:color/white"
-                                    android:textSize="9dp" />
+                                    android:textSize="@dimen/battleview_text_c_medium" />
                             </LinearLayout>
 
                             <TextView
@@ -2227,9 +3227,9 @@
 
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.4"
-                                android:minHeight="10dp"
+                                android:minHeight="@dimen/battleview_text_c_large"
                                 android:textColor="@android:color/white"
-                                android:textSize="9dp" />
+                                android:textSize="@dimen/battleview_text_c_medium" />
                         </LinearLayout>
 
                         <LinearLayout
@@ -2245,20 +3245,20 @@
 
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.6"
-                                android:minHeight="9dp"
+                                android:minHeight="@dimen/battleview_text_c_medium"
                                 android:textColor="@android:color/white"
-                                android:textSize="9dp" />
+                                android:textSize="@dimen/battleview_text_c_medium" />
 
                             <ProgressBar
                                 android:id="@+id/em_5_hp_bar"
                                 style="@android:style/Widget.DeviceDefault.ProgressBar.Horizontal"
                                 android:layout_width="0dp"
-                                android:layout_height="4dp"
+                                android:layout_height="@dimen/battleview_hp_height"
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.4"
                                 android:max="100"
                                 android:maxHeight="11dp"
-                                android:minHeight="9dp"
+                                android:minHeight="@dimen/battleview_text_c_medium"
                                 android:mirrorForRtl="false" />
                         </LinearLayout>
                     </LinearLayout>
@@ -2292,9 +3292,9 @@
 
                                     android:ellipsize="end"
                                     android:maxLines="1"
-                                    android:minHeight="10dp"
+                                    android:minHeight="@dimen/battleview_text_c_large"
                                     android:textColor="@android:color/white"
-                                    android:textSize="10dp" />
+                                    android:textSize="@dimen/battleview_text_c_large" />
 
                                 <TextView
                                     android:id="@+id/em_6_yomi"
@@ -2303,7 +3303,7 @@
                                     android:layout_marginLeft="4dp"
 
                                     android:textColor="@android:color/white"
-                                    android:textSize="9dp" />
+                                    android:textSize="@dimen/battleview_text_c_medium" />
                             </LinearLayout>
 
                             <TextView
@@ -2313,9 +3313,9 @@
 
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.4"
-                                android:minHeight="10dp"
+                                android:minHeight="@dimen/battleview_text_c_large"
                                 android:textColor="@android:color/white"
-                                android:textSize="9dp" />
+                                android:textSize="@dimen/battleview_text_c_medium" />
                         </LinearLayout>
 
                         <LinearLayout
@@ -2331,20 +3331,20 @@
 
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.6"
-                                android:minHeight="9dp"
+                                android:minHeight="@dimen/battleview_text_c_medium"
                                 android:textColor="@android:color/white"
-                                android:textSize="9dp" />
+                                android:textSize="@dimen/battleview_text_c_medium" />
 
                             <ProgressBar
                                 android:id="@+id/em_6_hp_bar"
                                 style="@android:style/Widget.DeviceDefault.ProgressBar.Horizontal"
                                 android:layout_width="0dp"
-                                android:layout_height="4dp"
+                                android:layout_height="@dimen/battleview_hp_height"
                                 android:layout_gravity="center_vertical"
                                 android:layout_weight="0.4"
                                 android:max="100"
                                 android:maxHeight="11dp"
-                                android:minHeight="9dp"
+                                android:minHeight="@dimen/battleview_text_c_medium"
                                 android:mirrorForRtl="false" />
                         </LinearLayout>
                     </LinearLayout>

@@ -22,15 +22,14 @@ import android.os.Message;
 import android.os.ParcelFileDescriptor;
 import android.os.PowerManager;
 import android.preference.PreferenceManager;
-import android.telephony.PhoneStateListener;
-import android.telephony.ServiceState;
-import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.util.Log;
 import android.os.Process;
 
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
+
 import java.io.IOException;
 import java.net.Inet4Address;
 import java.net.InetAddress;
@@ -38,21 +37,23 @@ import java.net.InterfaceAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.net.UnknownHostException;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.Enumeration;
 import java.util.List;
 
-import eu.faircode.netguard.Allowed;
 import eu.faircode.netguard.IPUtil;
 import eu.faircode.netguard.Packet;
 import eu.faircode.netguard.ResourceRecord;
 import eu.faircode.netguard.Rule;
-import eu.faircode.netguard.Usage;
 import eu.faircode.netguard.Util;
+
+import static com.antest1.kcanotify.KcaConstants.DMMLOGIN_PACKAGE_NAME;
+import static com.antest1.kcanotify.KcaConstants.KC_PACKAGE_NAME;
+import static com.antest1.kcanotify.KcaConstants.PREF_ALLOW_EXTFILTER;
+import static com.antest1.kcanotify.KcaConstants.PREF_PACKAGE_ALLOW;
+import static com.antest1.kcanotify.KcaConstants.VPN_STOP_REASON;
 
 public class KcaVpnService extends VpnService {
     private final static String TAG = "KCAV";
@@ -66,9 +67,9 @@ public class KcaVpnService extends VpnService {
 
     private State state = State.none;
 
-    private native void jni_init();
+    private native void jni_init(int sdk);
 
-    private native void jni_start(int tun, boolean fwd53, int loglevel);
+    private native void jni_start(int tun, boolean fwd53, int rcode, int loglevel);
 
     private native void jni_stop(int tun, boolean clr);
 
@@ -101,6 +102,7 @@ public class KcaVpnService extends VpnService {
     public static boolean checkOn() {
         return is_on;
     }
+
     /*
     synchronized private static PowerManager.WakeLock getLock(Context context) {
         if (wlInstance == null) {
@@ -310,8 +312,11 @@ public class KcaVpnService extends VpnService {
 
     @Override
     public void onCreate() {
-        jni_init();
+        jni_init(Build.VERSION.SDK_INT);
         super.onCreate();
+
+        boolean allow_ext = KcaUtils.getBooleanPreferences(getApplicationContext(), PREF_ALLOW_EXTFILTER);
+        KcaVpnData.setExternalFilter(allow_ext);
 
         HandlerThread commandThread = new HandlerThread(getString(R.string.app_name) + " command");
         commandThread.start();
@@ -329,6 +334,11 @@ public class KcaVpnService extends VpnService {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
         boolean enabled = prefs.getBoolean("enabled", false);
 
+        if (intent != null && intent.hasExtra(EXTRA_REASON)) {
+            String reason = intent.getStringExtra(EXTRA_REASON);
+            if (reason.equals(VPN_STOP_REASON)) stopSelf();
+        }
+
         if (intent == null) {
             Log.i(TAG, "Restart");
 
@@ -338,9 +348,11 @@ public class KcaVpnService extends VpnService {
         }
 
         Command cmd = (Command) intent.getSerializableExtra(EXTRA_COMMAND);
-        Log.e("KCA", cmd.toString());
-        if (cmd == null)
+        if (cmd == null) {
             intent.putExtra(EXTRA_COMMAND, enabled ? Command.start : Command.stop);
+            cmd = (Command) intent.getSerializableExtra(EXTRA_COMMAND);
+        }
+        Log.e("KCA", cmd.toString());
         String reason = intent.getStringExtra(EXTRA_REASON);
         Log.i(TAG, "Start intent=" + intent + " command=" + cmd + " reason=" + reason +
                 " vpn=" + (vpn != null) + " user=" + (Process.myUid() / 100000));
@@ -374,10 +386,8 @@ public class KcaVpnService extends VpnService {
     public void onRevoke() {
         Log.i(TAG, "Revoke");
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-        if(!prefs.getBoolean("svcenabled", false)) {
-            prefs.edit().putBoolean("enabled", false).apply();
-            super.onRevoke();
-        }
+        prefs.edit().putBoolean("enabled", false).apply();
+        super.onRevoke();
     }
 
     private Builder getBuilder(List<Rule> listAllowed, List<Rule> listRule) {
@@ -389,9 +399,28 @@ public class KcaVpnService extends VpnService {
         boolean filter = prefs.getBoolean("filter", false);
         boolean system = prefs.getBoolean("manage_system", false);
 
+        boolean socks5_enable = prefs.getBoolean("socks5_enable", false);
+        boolean socks5_allapps = prefs.getBoolean("socks5_allapps", false);
+
+        JsonArray allowed_apps = new JsonParser().parse(KcaUtils.getStringPreferences(
+                getApplicationContext(), PREF_PACKAGE_ALLOW)).getAsJsonArray();
+
         // Build VPN service
         Builder builder = new Builder();
-        builder.setSession(getString(R.string.app_name));
+        builder.setSession(getString(R.string.app_vpn_name));
+        if (Build.VERSION.SDK_INT >= 21) {
+            try {
+                if (!socks5_enable || !socks5_allapps) {
+                    builder.addAllowedApplication(KC_PACKAGE_NAME);
+                    if (socks5_enable) builder.addAllowedApplication(DMMLOGIN_PACKAGE_NAME);
+                    for (JsonElement pkg: allowed_apps) {
+                        builder.addAllowedApplication(pkg.getAsString());
+                    }
+                }
+            } catch (PackageManager.NameNotFoundException e) {
+                e.printStackTrace();
+            }
+        }
 
         // VPN address
         String vpn4 = prefs.getString("vpn4", "10.1.10.1");
@@ -413,15 +442,17 @@ public class KcaVpnService extends VpnService {
             }
 
         // Subnet routing
+        List<IPUtil.CIDR> listExclude = new ArrayList<>();
         if (subnet) {
             // Exclude IP ranges
-            List<IPUtil.CIDR> listExclude = new ArrayList<>();
             listExclude.add(new IPUtil.CIDR("127.0.0.0", 8)); // localhost
 
             if (tethering) {
-                // USB Tethering 192.168.42.x
-                // Wi-Fi Tethering 192.168.43.x
+                // USB tethering 192.168.42.x
+                // Wi-Fi tethering 192.168.43.x
                 listExclude.add(new IPUtil.CIDR("192.168.42.0", 23));
+                // Wi-Fi direct 192.168.49.x
+                listExclude.add(new IPUtil.CIDR("192.168.49.0", 24));
             }
 
             if (lan) {
@@ -444,109 +475,69 @@ public class KcaVpnService extends VpnService {
             }
 
             Configuration config = getResources().getConfiguration();
-            if (config.mcc == 310 && config.mnc == 260) {
-                // T-Mobile Wi-Fi calling
+            // T-Mobile Wi-Fi calling
+            if (config.mcc == 310 && (config.mnc == 160 ||
+                    config.mnc == 200 ||
+                    config.mnc == 210 ||
+                    config.mnc == 220 ||
+                    config.mnc == 230 ||
+                    config.mnc == 240 ||
+                    config.mnc == 250 ||
+                    config.mnc == 260 ||
+                    config.mnc == 270 ||
+                    config.mnc == 310 ||
+                    config.mnc == 490 ||
+                    config.mnc == 660 ||
+                    config.mnc == 800)) {
                 listExclude.add(new IPUtil.CIDR("66.94.2.0", 24));
                 listExclude.add(new IPUtil.CIDR("66.94.6.0", 23));
                 listExclude.add(new IPUtil.CIDR("66.94.8.0", 22));
                 listExclude.add(new IPUtil.CIDR("208.54.0.0", 16));
             }
             listExclude.add(new IPUtil.CIDR("224.0.0.0", 3)); // broadcast
+        }
 
-            Collections.sort(listExclude);
+        String addresses = prefs.getString("bypass_address", "");
+        if (!addresses.equals("")) {
+            for (String cidr : addresses.split(",")) {
+                String[] cidr_split = cidr.trim().split("/");
+                listExclude.add(new IPUtil.CIDR(cidr_split[0], Integer.parseInt(cidr_split[1])));
+            }
+        }
+        Collections.sort(listExclude);
 
-            try {
-                InetAddress start = InetAddress.getByName("0.0.0.0");
-                for (IPUtil.CIDR exclude : listExclude) {
-                    Log.i(TAG, "Exclude " + exclude.getStart().getHostAddress() + "..." + exclude.getEnd().getHostAddress());
-                    for (IPUtil.CIDR include : IPUtil.toCIDR(start, IPUtil.minus1(exclude.getStart())))
-                        try {
-                            builder.addRoute(include.address, include.prefix);
-                        } catch (Throwable ex) {
-                            Log.e(TAG, ex.toString() + "\n" + Log.getStackTraceString(ex));
-                        }
-                    start = IPUtil.plus1(exclude.getEnd());
-                }
-                for (IPUtil.CIDR include : IPUtil.toCIDR("224.0.0.0", "255.255.255.255"))
+        try {
+            InetAddress start = InetAddress.getByName("0.0.0.0");
+            for (IPUtil.CIDR exclude : listExclude) {
+                Log.i(TAG, "Exclude " + exclude.getStart().getHostAddress() + "..." + exclude.getEnd().getHostAddress());
+                for (IPUtil.CIDR include : IPUtil.toCIDR(start, IPUtil.minus1(exclude.getStart())))
                     try {
                         builder.addRoute(include.address, include.prefix);
                     } catch (Throwable ex) {
                         Log.e(TAG, ex.toString() + "\n" + Log.getStackTraceString(ex));
                     }
-            } catch (UnknownHostException ex) {
-                Log.e(TAG, ex.toString() + "\n" + Log.getStackTraceString(ex));
+                start = IPUtil.plus1(exclude.getEnd());
             }
-        } else {
-            String addresses = prefs.getString("bypass_address", "");
-            if (!addresses.equals("")) {
-                List<IPUtil.CIDR> listExclude = new ArrayList<>();
-                for (String cidr : addresses.split(",")) {
-                    String[] cidr_split = cidr.trim().split("/");
-                    listExclude.add(new IPUtil.CIDR(cidr_split[0], Integer.parseInt(cidr_split[1])));
-                }
-
-                Collections.sort(listExclude);
-
+            String end = (lan ? "255.255.255.254" : "255.255.255.255");
+            for (IPUtil.CIDR include : IPUtil.toCIDR("224.0.0.0", end))
                 try {
-                    InetAddress start = InetAddress.getByName("0.0.0.0");
-
-                    for (IPUtil.CIDR exclude : listExclude) {
-                        for (IPUtil.CIDR include : IPUtil.toCIDR(start, IPUtil.minus1(exclude.getStart())))
-                            try {
-                                builder.addRoute(include.address, include.prefix);
-                            } catch (Throwable ex) {
-                                Log.e(TAG, ex.toString() + "\n" + Log.getStackTraceString(ex));
-                            }
-                        start = IPUtil.plus1(exclude.getEnd());
-                    }
-
-                    for (IPUtil.CIDR include : IPUtil.toCIDR(start.getHostAddress(), "255.255.255.255"))
-                        try {
-                            builder.addRoute(include.address, include.prefix);
-                        } catch (Throwable ex) {
-                            Log.e(TAG, ex.toString() + "\n" + Log.getStackTraceString(ex));
-                        }
-                } catch (UnknownHostException ex) {
+                    builder.addRoute(include.address, include.prefix);
+                } catch (Throwable ex) {
                     Log.e(TAG, ex.toString() + "\n" + Log.getStackTraceString(ex));
                 }
-            }
-            else builder.addRoute("0.0.0.0", 0);
+        } catch (UnknownHostException ex) {
+            Log.e(TAG, ex.toString() + "\n" + Log.getStackTraceString(ex));
         }
+        builder.addRoute("0.0.0.0", 0);
 
         Log.i(TAG, "IPv6=" + ip6);
         if (ip6)
-            builder.addRoute("0:0:0:0:0:0:0:0", 0);
+            builder.addRoute("2000::", 3); // unicast
 
         // MTU
         int mtu = jni_get_mtu();
         Log.i(TAG, "MTU=" + mtu);
         builder.setMtu(mtu);
-
-        /*
-        // Add list of allowed applications
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP)
-            if (last_connected && !filter)
-                for (Rule rule : listAllowed)
-                    try {
-                        builder.addDisallowedApplication(rule.info.packageName);
-                    } catch (PackageManager.NameNotFoundException ex) {
-                        Log.e(TAG, ex.toString() + "\n" + Log.getStackTraceString(ex));
-                    }
-            else if (filter)
-                for (Rule rule : listRule)
-                    if (!rule.apply || (!system && rule.system))
-                        try {
-                            Log.i(TAG, "Not routing " + rule.info.packageName);
-                            builder.addDisallowedApplication(rule.info.packageName);
-                        } catch (PackageManager.NameNotFoundException ex) {
-                            Log.e(TAG, ex.toString() + "\n" + Log.getStackTraceString(ex));
-                        }
-        */
-        // Build configure intent
-        //Intent configure = new Intent(this, MainActivity.class);
-        //PendingIntent pi = PendingIntent.getActivity(this, 0, configure, PendingIntent.FLAG_UPDATE_CURRENT);
-        //builder.setConfigureIntent(pi);
-
 
         return builder;
     }
@@ -605,17 +596,24 @@ public class KcaVpnService extends VpnService {
     private void startNative(ParcelFileDescriptor vpn) {
         // Prepare rules
         int prio = Log.ERROR;
+        int rcode = 3;
         SharedPreferences prefs = getSharedPreferences("pref", Context.MODE_PRIVATE);
+        boolean enable = prefs.getBoolean("socks5_enable", false);
         String addr = prefs.getString("socks5_address", "");
         String portNum = prefs.getString("socks5_port", "0");
+        String username = prefs.getString("socks5_name", "");
+        String password = prefs.getString("socks5_pass", "");
         int port = 0;
         if (!portNum.equals(""))
             port = Integer.parseInt(portNum);
-        if (addr.equals("") || port == 0)
+        if (enable && !(addr.equals("") || port == 0)) {
+            Log.i(TAG, String.format("Proxy enabled, with address %s and port %d, Auth with %s %s", addr, port, username, password));
+            jni_socks5(addr, port, username, password);
+        } else {
+            Log.i(TAG, "Proxy disabled");
             jni_socks5("", 0, "", "");
-        else
-            jni_socks5(addr, port, "", "");
-        jni_start(vpn.getFd(), true, prio);
+        }
+        jni_start(vpn.getFd(), true, rcode, prio);
     }
 
     private void stopVPN(ParcelFileDescriptor pfd) {
@@ -659,19 +657,6 @@ public class KcaVpnService extends VpnService {
     }
 
     // Called from native code
-    private void logPacket(Packet packet) {
-        Log.e("KCAV", packet.data);
-        /*
-        Message msg = logHandler.obtainMessage();
-        msg.obj = packet;
-        msg.what = MSG_PACKET;
-        msg.arg1 = (last_connected ? (last_metered ? 2 : 1) : 0);
-        msg.arg2 = (last_interactive ? 1 : 0);
-        logHandler.sendMessage(msg);
-        */
-    }
-
-    // Called from native code
     private void dnsResolved(ResourceRecord rr) {
         /*
         if (DatabaseHelper.getInstance(KcaVpnService.this).insertDns(rr)) {
@@ -680,42 +665,11 @@ public class KcaVpnService extends VpnService {
         }*/
     }
 
-    // Called from native code
-    private boolean isDomainBlocked(String name) {
-        /*
-        lock.readLock().lock();
-        boolean blocked = (mapHostsBlocked.containsKey(name) && mapHostsBlocked.get(name));
-        lock.readLock().unlock();
-        return blocked;
-        */
-        return false;
-    }
-
     private boolean isSupported(int protocol) {
         return (protocol == 1 /* ICMPv4 */ ||
                 protocol == 59 /* ICMPv6 */ ||
                 protocol == 6 /* TCP */ ||
                 protocol == 17 /* UDP */);
-    }
-
-    // Called from native code
-    private Allowed isAddressAllowed(Packet packet) {
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-
-        //lock.readLock().lock();
-
-        Allowed allowed = new Allowed();
-        return allowed;
-    }
-
-    // Called from native code
-    private void accountUsage(Usage usage) {
-        /*
-        Message msg = logHandler.obtainMessage();
-        msg.obj = usage;
-        msg.what = MSG_USAGE;
-        logHandler.sendMessage(msg);
-        */
     }
 
     private BroadcastReceiver interactiveStateReceiver = new BroadcastReceiver() {

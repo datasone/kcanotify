@@ -17,7 +17,10 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
@@ -26,20 +29,27 @@ import static com.antest1.kcanotify.KcaApiData.getItemTranslation;
 import static com.antest1.kcanotify.KcaApiData.getKcItemStatusById;
 import static com.antest1.kcanotify.KcaApiData.getKcShipDataById;
 import static com.antest1.kcanotify.KcaApiData.getShipTranslation;
-import static com.antest1.kcanotify.KcaApiData.kcShipTranslationData;
 import static com.antest1.kcanotify.KcaApiData.loadTranslationData;
 import static com.antest1.kcanotify.KcaApiData.removeKai;
+import static com.antest1.kcanotify.KcaConstants.DB_KEY_MATERIALS;
+import static com.antest1.kcanotify.KcaConstants.DB_KEY_USEITEMS;
+import static com.antest1.kcanotify.KcaConstants.KCANOTIFY_DB_VERSION;
 import static com.antest1.kcanotify.KcaConstants.PREF_KCA_LANGUAGE;
 import static com.antest1.kcanotify.KcaUtils.getId;
+import static com.antest1.kcanotify.KcaUtils.getJapanCalendarInstance;
 import static com.antest1.kcanotify.KcaUtils.getStringPreferences;
 import static com.antest1.kcanotify.KcaUtils.joinStr;
 
 
 public class AkashiDetailActivity extends AppCompatActivity {
     Toolbar toolbar;
+    KcaDBHelper dbHelper;
     static Gson gson = new Gson();
     TextView itemNameTextView, itemImprovDefaultShipTextView;
-    JsonObject itemImprovmentData;
+    JsonObject itemImprovementData;
+
+    TextView dmat_count, smat_count;
+    TextView current_date;
 
     public AkashiDetailActivity() {
         LocaleUtils.updateConfig(this);
@@ -58,97 +68,181 @@ public class AkashiDetailActivity extends AppCompatActivity {
         getSupportActionBar().setTitle(getResources().getString(R.string.action_akashi_detail));
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
 
-        itemNameTextView = (TextView) findViewById(R.id.akashi_detail_name);
-        itemImprovDefaultShipTextView = (TextView) findViewById(R.id.akashi_improv_default_list);
+        dbHelper = new KcaDBHelper(getApplicationContext(), null, KCANOTIFY_DB_VERSION);
 
-        int itemid = getIntent().getIntExtra("item_id", 0);
-        String itemImprovmetInfo = getIntent().getStringExtra("item_info");
-        String kcItemName = "";
-        if (itemid != 0) {
-            JsonObject kcItemData = getKcItemStatusById(itemid, "type,name");
-            kcItemName = getItemTranslation(kcItemData.get("name").getAsString());
-            itemNameTextView.setText(kcItemName);
-        } else {
-            Toast.makeText(this, "??", Toast.LENGTH_LONG).show();
+        Calendar calendar = getJapanCalendarInstance();
+        int dayOfWeek = calendar.get(Calendar.DAY_OF_WEEK) - 1; // 0(Sun) ~ 6(Sat)
+        Date date = calendar.getTime();
+        SimpleDateFormat date_format = new SimpleDateFormat("yyyy/MM/dd", Locale.ENGLISH);
+        current_date = findViewById(R.id.current_date);
+        current_date.setText(KcaUtils.format("%s (%s)", date_format.format(date),
+                getStringWithLocale(getId("akashi_term_day_" + dayOfWeek, R.string.class))));
+
+        dmat_count = findViewById(R.id.count_dmat);
+        smat_count = findViewById(R.id.count_smat);
+        JsonArray material_data = dbHelper.getJsonArrayValue(DB_KEY_MATERIALS);
+        if (material_data != null) {
+            JsonElement dmat_value = material_data.get(6);
+            String dmat_str = dmat_value.isJsonPrimitive() ? dmat_value.getAsString() : dmat_value.getAsJsonObject().get("api_value").getAsString();
+            dmat_count.setText(String.valueOf(dmat_str));
+
+            JsonElement smat_value = material_data.get(7);
+            String smat_str = smat_value.isJsonPrimitive() ? smat_value.getAsString() : smat_value.getAsJsonObject().get("api_value").getAsString();
+            smat_count.setText(String.valueOf(smat_str));
         }
 
-        if (itemImprovmetInfo.length() > 0) {
-            itemImprovmentData = new JsonParser().parse(itemImprovmetInfo).getAsJsonObject();
-            JsonArray itemImprovmentDetail = itemImprovmentData.getAsJsonArray("improvment");
-            JsonArray itemDefaultEquippedOn = itemImprovmentData.getAsJsonArray("default_equipped_on");
-            if (itemImprovmentDetail.size() < 2) {
-                findViewById(R.id.akashi_improv_detail_2).setVisibility(View.GONE);
+        /*
+        JsonArray useitem_data = dbHelper.getJsonArrayValue(DB_KEY_USEITEMS);
+        if (useitem_data != null) {
+            for (int i = 0; i < useitem_data.size(); i++) {
+                JsonObject item = useitem_data.get(i).getAsJsonObject();
+                int key = item.get("api_id").getAsInt();
+                if (key == 3) { // DEVMAT
+                    dmat_count.setText(String.valueOf(item.get("api_count").getAsInt()));
+                } else if (key == 4) { // SCREW
+                    smat_count.setText(String.valueOf(item.get("api_count").getAsInt()));
+                }
             }
-            for (int i = 0; i < itemImprovmentDetail.size(); i++) {
-                JsonObject data = itemImprovmentDetail.get(i).getAsJsonObject();
-                JsonArray resources = data.getAsJsonArray("resource");
+        }*/
 
-                for (int j = 1; j <= 3; j++) {
-                    String[] mse_string = getMseString(resources.get(j).getAsJsonArray());
-                    ((TextView) findViewById(getId("akashi_improv_detail_m".concat(String.valueOf(j))
-                            .concat("_").concat(String.valueOf(i + 1)), R.id.class)))
-                            .setText(mse_string[0]);
-                    ((TextView) findViewById(getId("akashi_improv_detail_s".concat(String.valueOf(j))
-                            .concat("_").concat(String.valueOf(i + 1)), R.id.class)))
-                            .setText(mse_string[1]);
-                    ((TextView) findViewById(getId("akashi_improv_detail_e".concat(String.valueOf(j))
-                            .concat("_").concat(String.valueOf(i + 1)), R.id.class)))
-                            .setText(mse_string[2]);
-                }
+        if (!getIntent().hasExtra("item_id")) {
+            finish();
+        } else {
+            itemNameTextView = (TextView) findViewById(R.id.akashi_detail_name);
+            itemImprovDefaultShipTextView = (TextView) findViewById(R.id.akashi_improv_default_list);
 
-
-                ((TextView) findViewById(getId("akashi_improv_consume_".concat(String.valueOf(i + 1)), R.id.class)))
-                        .setText(getConcatString(resources.get(0).getAsJsonArray()));
-
-                JsonElement upgrade = data.get("upgrade");
-                if (upgrade.isJsonArray()) {
-                    int upgradeItemId = upgrade.getAsJsonArray().get(0).getAsInt();
-                    int upgradeItemStar = upgrade.getAsJsonArray().get(1).getAsInt();
-                    String upgradeItemName = getItemTranslation(getKcItemStatusById(upgradeItemId, "name").get("name").getAsString());
-                    String upgradeStarString = "";
-                    if (upgradeItemStar > 0) {
-                        upgradeStarString = upgradeStarString.concat(" ").concat("★").concat(String.valueOf(upgradeItemStar));
-                    }
-                    ((TextView) findViewById(getId("akashi_improv_detail_upgrade_".concat(String.valueOf(i + 1)), R.id.class)))
-                            .setText("→ ".concat(upgradeItemName.concat(upgradeStarString)));
-                } else {
-                    findViewById(getId("akashi_improv_detail_row3_".concat(String.valueOf(i + 1)), R.id.class)).
-                            setVisibility(View.GONE);
-                }
-
-                JsonArray req = data.get("req").getAsJsonArray();
-                ((TextView) findViewById(getId("akashi_improv_support_".concat(String.valueOf(i + 1)), R.id.class)))
-                        .setText(getSupportString(req));
+            int itemid = getIntent().getIntExtra("item_id", 0);
+            String itemImprovmetInfo = getIntent().getStringExtra("item_info");
+            String kcItemName = "";
+            if (itemid != 0) {
+                JsonObject kcItemData = getKcItemStatusById(itemid, "type,name");
+                kcItemName = getItemTranslation(kcItemData.get("name").getAsString());
+                itemNameTextView.setText(kcItemName);
+            } else {
+                Toast.makeText(this, "??", Toast.LENGTH_LONG).show();
             }
-            List<String> shipList = new ArrayList<>();
-            List<String> shipNameList = new ArrayList<>();
-            JsonObject shipName = new JsonObject();
 
-            if (itemDefaultEquippedOn != null) {
-                for (JsonElement element : itemDefaultEquippedOn) {
-                    String shipId = element.getAsString();
-                    shipList.add(shipId);
-                    JsonObject kcShipData = getKcShipDataById(Integer.parseInt(shipId), "name");
-                    shipName.addProperty(shipId, getShipTranslation(kcShipData.get("name").getAsString(), false));
+            if (itemImprovmetInfo.length() > 0) {
+                itemImprovementData = new JsonParser().parse(itemImprovmetInfo).getAsJsonObject();
+                JsonArray itemImprovementDetail = itemImprovementData.getAsJsonArray("improvement");
+                JsonArray itemDefaultEquippedOn = itemImprovementData.getAsJsonArray("default_equipped_on");
+                boolean itemConvertException = itemImprovementData.has("convert_exception");
+                if (itemImprovementDetail.size() < 2) {
+                    findViewById(R.id.akashi_improv_detail_2).setVisibility(View.GONE);
                 }
-                if (shipList.size() > 0) {
-                    JsonObject shipRemovelLv = findRemodelLv(joinStr(shipList, ","));
-                    for (int i = 0; i < shipList.size(); i++) {
-                        String id = shipList.get(i);
-                        shipNameList.add(String.format("%s(%d)", shipName.get(id).getAsString(), shipRemovelLv.get(id).getAsInt()));
+                for (int i = 0; i < itemImprovementDetail.size(); i++) {
+                    JsonObject data = itemImprovementDetail.get(i).getAsJsonObject();
+                    JsonArray resources = data.getAsJsonArray("resource");
+
+                    for (int j = 1; j <= 3; j++) {
+                        String[] mse_string = getMseString(resources.get(j).getAsJsonArray());
+                        ((TextView) findViewById(getId("akashi_improv_detail_m".concat(String.valueOf(j))
+                                .concat("_").concat(String.valueOf(i + 1)), R.id.class)))
+                                .setText(mse_string[0]);
+                        ((TextView) findViewById(getId("akashi_improv_detail_s".concat(String.valueOf(j))
+                                .concat("_").concat(String.valueOf(i + 1)), R.id.class)))
+                                .setText(mse_string[1]);
+                        if (j == 3 && data.has("require_item")) {
+                            String e3 = mse_string[2];
+                            JsonArray require_items = data.getAsJsonArray("require_item");
+                            List<String> require_items_str = new ArrayList<>();
+                            require_items_str.add(e3);
+                            for (int k = 0; k < require_items.size(); k++) {
+                                JsonArray r_item = require_items.get(k).getAsJsonArray();
+                                String require_item_name;
+                                int require_item_count = r_item.get(1).getAsInt();
+                                switch (r_item.get(0).getAsInt()) {
+                                    case 1:
+                                        require_item_name = getStringWithLocale(R.string.item_engine);
+                                        break;
+                                    case 2:
+                                        require_item_name = getStringWithLocale(R.string.item_gmi_material);
+                                        break;
+                                    case 3:
+                                        require_item_name = getStringWithLocale(R.string.item_skilled_crew);
+                                        break;
+                                    case 4:
+                                        require_item_name = getStringWithLocale(R.string.item_kouku_material);
+                                        break;
+                                    case 5:
+                                        require_item_name = getStringWithLocale(R.string.item_action_report);
+                                        break;
+                                    default:
+                                        require_item_name = "";
+                                        break;
+                                }
+                                require_items_str.add(KcaUtils.format("%s x %d", require_item_name, require_item_count));
+                            }
+                            e3 = KcaUtils.joinStr(require_items_str, "\n");
+                            ((TextView) findViewById(getId("akashi_improv_detail_e".concat(String.valueOf(j))
+                                    .concat("_").concat(String.valueOf(i + 1)), R.id.class)))
+                                    .setText(e3);
+                        } else {
+                            ((TextView) findViewById(getId("akashi_improv_detail_e".concat(String.valueOf(j))
+                                    .concat("_").concat(String.valueOf(i + 1)), R.id.class)))
+                                    .setText(mse_string[2]);
+                        }
+
                     }
-                    itemImprovDefaultShipTextView.setText(joinStr(shipNameList, " / "));
+
+                    ((TextView) findViewById(getId("akashi_improv_consume_".concat(String.valueOf(i + 1)), R.id.class)))
+                            .setText(getConcatString(resources.get(0).getAsJsonArray()));
+
+                    JsonElement upgrade = data.get("upgrade");
+                    if (upgrade.isJsonArray()) {
+                        int upgradeItemId = upgrade.getAsJsonArray().get(0).getAsInt();
+                        int upgradeItemStar = upgrade.getAsJsonArray().get(1).getAsInt();
+                        String upgradeItemName = getItemTranslation(getKcItemStatusById(upgradeItemId, "name").get("name").getAsString());
+                        String upgradeStarString = "";
+                        if (upgradeItemStar > 0) {
+                            upgradeStarString = upgradeStarString.concat(" ").concat("★").concat(String.valueOf(upgradeItemStar));
+                        }
+                        ((TextView) findViewById(getId("akashi_improv_detail_upgrade_".concat(String.valueOf(i + 1)), R.id.class)))
+                                .setText("→ ".concat(upgradeItemName.concat(upgradeStarString)));
+                    } else {
+                        findViewById(getId("akashi_improv_detail_row3_".concat(String.valueOf(i + 1)), R.id.class)).
+                                setVisibility(View.GONE);
+                    }
+
+                    JsonArray req = data.get("req").getAsJsonArray();
+                    ((TextView) findViewById(getId("akashi_improv_support_".concat(String.valueOf(i + 1)), R.id.class)))
+                            .setText(getSupportString(req, itemConvertException));
+                }
+                List<String> shipList = new ArrayList<>();
+                List<String> shipNameList = new ArrayList<>();
+                JsonObject shipName = new JsonObject();
+
+                if (itemDefaultEquippedOn != null) {
+                    for (JsonElement element : itemDefaultEquippedOn) {
+                        String shipId = element.getAsString();
+                        shipList.add(shipId);
+                        JsonObject kcShipData = getKcShipDataById(Integer.parseInt(shipId), "name");
+                        shipName.addProperty(shipId, getShipTranslation(kcShipData.get("name").getAsString(), false));
+                    }
+                    if (shipList.size() > 0) {
+                        JsonObject shipRemovelLv = findRemodelLv(joinStr(shipList, ","));
+                        for (int i = 0; i < shipList.size(); i++) {
+                            String id = shipList.get(i);
+                            shipNameList.add(KcaUtils.format("%s(%d)", shipName.get(id).getAsString(), shipRemovelLv.get(id).getAsInt()));
+                        }
+                        itemImprovDefaultShipTextView.setText(joinStr(shipNameList, " / "));
+                    } else {
+                        itemImprovDefaultShipTextView.setText("-");
+                    }
                 } else {
                     itemImprovDefaultShipTextView.setText("-");
                 }
+
             } else {
-                itemImprovDefaultShipTextView.setText("-");
+                Toast.makeText(this, "??", Toast.LENGTH_LONG).show();
             }
-
-        } else {
-            Toast.makeText(this, "??", Toast.LENGTH_LONG).show();
         }
+    }
 
+    @Override
+    public void onPause() {
+        super.onPause();
+       finish();
     }
 
     @Override
@@ -179,7 +273,7 @@ public class AkashiDetailActivity extends AppCompatActivity {
         String[] value_list = new String[6];
         for (int i = 0; i < array.size(); i++) {
             value_list[i] = array.get(i).getAsString();
-            if (value_list[i].equals("0")) {
+            if (i >= 4 && value_list[i].equals("0")) {
                 value_list[i] = "-";
             } else if (value_list[i].equals("-1")) {
                 value_list[i] = "?";
@@ -205,7 +299,7 @@ public class AkashiDetailActivity extends AppCompatActivity {
     }
 
 
-    private String getSupportString(JsonArray array) {
+    private String getSupportString(JsonArray array, boolean exception) {
         String supportString = "";
         for (int i = 0; i < array.size(); i++) {
             List<String> daylist = new ArrayList<>();
@@ -219,11 +313,11 @@ public class AkashiDetailActivity extends AppCompatActivity {
                 }
                 String daytext = joinStr(daylist, ",");
 
-                int[] shiplist = removeKai(item.get(1).getAsJsonArray());
+                int[] shiplist = removeKai(item.get(1).getAsJsonArray(), exception);
                 for (int j = 0; j < shiplist.length; j++) {
                     JsonObject kcShipData = getKcShipDataById(shiplist[j], "name");
                     String shipname = getShipTranslation(kcShipData.get("name").getAsString(), false);
-                    supportString = supportString.concat(String.format("%s(%s)", shipname, daytext)).concat("\n");
+                    supportString = supportString.concat(KcaUtils.format("%s(%s)", shipname, daytext)).concat("\n");
                 }
             } else {
                 supportString = "-";
@@ -242,13 +336,13 @@ public class AkashiDetailActivity extends AppCompatActivity {
             Log.e("KCA", "lang: " + newConfig.locale.getLanguage() + " " + newConfig.locale.getCountry());
             KcaApplication.defaultLocale = newConfig.locale;
         }
-        if(getStringPreferences(getApplicationContext(), PREF_KCA_LANGUAGE).startsWith("default")) {
+        if (getStringPreferences(getApplicationContext(), PREF_KCA_LANGUAGE).startsWith("default")) {
             LocaleUtils.setLocale(KcaApplication.defaultLocale);
         } else {
             String[] pref = getStringPreferences(getApplicationContext(), PREF_KCA_LANGUAGE).split("-");
             LocaleUtils.setLocale(new Locale(pref[0], pref[1]));
         }
-        loadTranslationData(getAssets(), getApplicationContext());
+        loadTranslationData(getApplicationContext());
         super.onConfigurationChanged(newConfig);
     }
 }

@@ -39,12 +39,11 @@ extern struct ng_session *ng_session;
 extern FILE *pcap_file;
 extern size_t pcap_record_size;
 extern long pcap_file_size;
+
 // JNI
 
 jclass clsPacket;
-jclass clsAllowed;
 jclass clsRR;
-jclass clsUsage;
 jclass clsData;
 
 jint JNI_OnLoad(JavaVM *vm, void *reserved) {
@@ -59,14 +58,8 @@ jint JNI_OnLoad(JavaVM *vm, void *reserved) {
     const char *packet = "eu/faircode/netguard/Packet";
     clsPacket = jniGlobalRef(env, jniFindClass(env, packet));
 
-    const char *allowed = "eu/faircode/netguard/Allowed";
-    clsAllowed = jniGlobalRef(env, jniFindClass(env, allowed));
-
     const char *rr = "eu/faircode/netguard/ResourceRecord";
     clsRR = jniGlobalRef(env, jniFindClass(env, rr));
-
-    const char *usage = "eu/faircode/netguard/Usage";
-    clsUsage = jniGlobalRef(env, jniFindClass(env, usage));
 
     const char *vpndata = "com/antest1/kcanotify/KcaVpnData";
     clsData = jniGlobalRef(env, jniFindClass(env, vpndata));
@@ -102,12 +95,13 @@ void JNI_OnUnload(JavaVM *vm, void *reserved) {
 // JNI ServiceSinkhole
 
 JNIEXPORT void JNICALL
-Java_com_antest1_kcanotify_KcaVpnService_jni_1init(JNIEnv *env, jobject instance) {
+Java_com_antest1_kcanotify_KcaVpnService_jni_1init(JNIEnv *env, jobject instance, jint sdk) {
     loglevel = ANDROID_LOG_WARN;
 
     struct arguments args;
     args.env = env;
     args.instance = instance;
+    args.sdk = sdk;
     init(&args);
 
     *socks5_addr = 0;
@@ -133,7 +127,7 @@ Java_com_antest1_kcanotify_KcaVpnService_jni_1init(JNIEnv *env, jobject instance
 
 JNIEXPORT void JNICALL
 Java_com_antest1_kcanotify_KcaVpnService_jni_1start(
-        JNIEnv *env, jobject instance, jint tun, jboolean fwd53, jint loglevel_) {
+        JNIEnv *env, jobject instance, jint tun, jboolean fwd53, jint rcode, jint loglevel_) {
 
     loglevel = loglevel_;
     max_tun_msg = 0;
@@ -160,6 +154,7 @@ Java_com_antest1_kcanotify_KcaVpnService_jni_1start(
         args->instance = (*env)->NewGlobalRef(env, instance);
         args->tun = tun;
         args->fwd53 = fwd53;
+        args->rcode = rcode;
 
         // Start native thread
         int err = pthread_create(&thread_id, NULL, handle_events, (void *) args);
@@ -185,11 +180,13 @@ Java_com_antest1_kcanotify_KcaVpnService_jni_1stop(
             if (err != 0)
                 log_android(ANDROID_LOG_WARN, "pthread_join error %d: %s", err, strerror(err));
         }
+
         if (clr)
             clear();
 
         log_android(ANDROID_LOG_WARN, "Stopped thread %x", t);
-    } else
+    }
+    else
         log_android(ANDROID_LOG_WARN, "Not running thread %x", t);
 }
 
@@ -421,8 +418,16 @@ static jmethodID midProtect = NULL;
 
 int protect_socket(const struct arguments *args, int socket) {
     jclass cls = (*args->env)->GetObjectClass(args->env, args->instance);
+    if (cls == NULL) {
+        log_android(ANDROID_LOG_ERROR, "protect socket failed to get class");
+        return -1;
+    }
     if (midProtect == NULL)
         midProtect = jniGetMethodID(args->env, cls, "protect", "(I)Z");
+    if (midProtect == NULL) {
+        log_android(ANDROID_LOG_ERROR, "protect socket failed to get method");
+        return -1;
+    }
 
     jboolean isProtected = (*args->env)->CallBooleanMethod(
             args->env, args->instance, midProtect, socket);
@@ -495,6 +500,7 @@ int jniCheckException(JNIEnv *env) {
 
 static jmethodID midLogPacket = NULL;
 
+/*
 void log_packet(const struct arguments *args, jobject jpacket) {
 #ifdef PROFILE_JNI
     float mselapsed;
@@ -522,6 +528,7 @@ void log_packet(const struct arguments *args, jobject jpacket) {
         log_android(ANDROID_LOG_WARN, "log_packet %f", mselapsed);
 #endif
 }
+*/
 
 static jmethodID midDnsResolved = NULL;
 static jmethodID midInitRR = NULL;
@@ -591,6 +598,7 @@ void dns_resolved(const struct arguments *args,
 
 static jmethodID midIsDomainBlocked = NULL;
 
+/*
 jboolean is_domain_blocked(const struct arguments *args, const char *name) {
 #ifdef PROFILE_JNI
     float mselapsed;
@@ -623,64 +631,7 @@ jboolean is_domain_blocked(const struct arguments *args, const char *name) {
 
     return jallowed;
 }
-
-static jmethodID midIsAddressAllowed = NULL;
-jfieldID fidRaddr = NULL;
-jfieldID fidRport = NULL;
-struct allowed allowed;
-
-struct allowed *is_address_allowed(const struct arguments *args, jobject jpacket) {
-#ifdef PROFILE_JNI
-    float mselapsed;
-    struct timeval start, end;
-    gettimeofday(&start, NULL);
-#endif
-
-    jclass clsService = (*args->env)->GetObjectClass(args->env, args->instance);
-
-    const char *signature = "(Leu/faircode/netguard/Packet;)Leu/faircode/netguard/Allowed;";
-    if (midIsAddressAllowed == NULL)
-        midIsAddressAllowed = jniGetMethodID(args->env, clsService, "isAddressAllowed", signature);
-
-    jobject jallowed = (*args->env)->CallObjectMethod(
-            args->env, args->instance, midIsAddressAllowed, jpacket);
-    jniCheckException(args->env);
-
-    if (jallowed != NULL) {
-        if (fidRaddr == NULL) {
-            const char *string = "Ljava/lang/String;";
-            fidRaddr = jniGetFieldID(args->env, clsAllowed, "raddr", string);
-            fidRport = jniGetFieldID(args->env, clsAllowed, "rport", "I");
-        }
-
-        jstring jraddr = (*args->env)->GetObjectField(args->env, jallowed, fidRaddr);
-        if (jraddr == NULL)
-            *allowed.raddr = 0;
-        else {
-            const char *raddr = (*args->env)->GetStringUTFChars(args->env, jraddr, NULL);
-            strcpy(allowed.raddr, raddr);
-            (*args->env)->ReleaseStringUTFChars(args->env, jraddr, raddr);
-        }
-        allowed.rport = (uint16_t) (*args->env)->GetIntField(args->env, jallowed, fidRport);
-
-        (*args->env)->DeleteLocalRef(args->env, jraddr);
-    }
-
-
-    (*args->env)->DeleteLocalRef(args->env, jpacket);
-    (*args->env)->DeleteLocalRef(args->env, clsService);
-    (*args->env)->DeleteLocalRef(args->env, jallowed);
-
-#ifdef PROFILE_JNI
-    gettimeofday(&end, NULL);
-    mselapsed = (end.tv_sec - start.tv_sec) * 1000.0 +
-                (end.tv_usec - start.tv_usec) / 1000.0;
-    if (mselapsed > PROFILE_JNI)
-        log_android(ANDROID_LOG_WARN, "is_address_allowed %f", mselapsed);
-#endif
-
-    return (jallowed == NULL ? NULL : &allowed);
-}
+*/
 
 jmethodID midInitPacket = NULL;
 
@@ -778,77 +729,6 @@ jobject create_packet(const struct arguments *args,
     return jpacket;
 }
 
-jmethodID midAccountUsage = NULL;
-jmethodID midInitUsage = NULL;
-jfieldID fidUsageTime = NULL;
-jfieldID fidUsageVersion = NULL;
-jfieldID fidUsageProtocol = NULL;
-jfieldID fidUsageDAddr = NULL;
-jfieldID fidUsageDPort = NULL;
-jfieldID fidUsageUid = NULL;
-jfieldID fidUsageSent = NULL;
-jfieldID fidUsageReceived = NULL;
-
-void account_usage(const struct arguments *args, jint version, jint protocol,
-                   const char *daddr, jint dport, jint uid, jlong sent, jlong received) {
-#ifdef PROFILE_JNI
-    float mselapsed;
-    struct timeval start, end;
-    gettimeofday(&start, NULL);
-#endif
-
-    jclass clsService = (*args->env)->GetObjectClass(args->env, args->instance);
-
-    const char *signature = "(Leu/faircode/netguard/Usage;)V";
-    if (midAccountUsage == NULL)
-        midAccountUsage = jniGetMethodID(args->env, clsService, "accountUsage", signature);
-
-    const char *usage = "eu/faircode/netguard/Usage";
-    if (midInitUsage == NULL)
-        midInitUsage = jniGetMethodID(args->env, clsUsage, "<init>", "()V");
-
-    jobject jusage = jniNewObject(args->env, clsUsage, midInitUsage, usage);
-
-    if (fidUsageTime == NULL) {
-        const char *string = "Ljava/lang/String;";
-        fidUsageTime = jniGetFieldID(args->env, clsUsage, "Time", "J");
-        fidUsageVersion = jniGetFieldID(args->env, clsUsage, "Version", "I");
-        fidUsageProtocol = jniGetFieldID(args->env, clsUsage, "Protocol", "I");
-        fidUsageDAddr = jniGetFieldID(args->env, clsUsage, "DAddr", string);
-        fidUsageDPort = jniGetFieldID(args->env, clsUsage, "DPort", "I");
-        fidUsageUid = jniGetFieldID(args->env, clsUsage, "Uid", "I");
-        fidUsageSent = jniGetFieldID(args->env, clsUsage, "Sent", "J");
-        fidUsageReceived = jniGetFieldID(args->env, clsUsage, "Received", "J");
-    }
-
-    jlong jtime = time(NULL) * 1000LL;
-    jstring jdaddr = (*args->env)->NewStringUTF(args->env, daddr);
-
-    (*args->env)->SetLongField(args->env, jusage, fidUsageTime, jtime);
-    (*args->env)->SetIntField(args->env, jusage, fidUsageVersion, version);
-    (*args->env)->SetIntField(args->env, jusage, fidUsageProtocol, protocol);
-    (*args->env)->SetObjectField(args->env, jusage, fidUsageDAddr, jdaddr);
-    (*args->env)->SetIntField(args->env, jusage, fidUsageDPort, dport);
-    (*args->env)->SetIntField(args->env, jusage, fidUsageUid, uid);
-    (*args->env)->SetLongField(args->env, jusage, fidUsageSent, sent);
-    (*args->env)->SetLongField(args->env, jusage, fidUsageReceived, received);
-
-    (*args->env)->CallVoidMethod(args->env, args->instance, midAccountUsage, jusage);
-    jniCheckException(args->env);
-
-    (*args->env)->DeleteLocalRef(args->env, jdaddr);
-    (*args->env)->DeleteLocalRef(args->env, jusage);
-    (*args->env)->DeleteLocalRef(args->env, clsService);
-
-#ifdef PROFILE_JNI
-    gettimeofday(&end, NULL);
-    mselapsed = (end.tv_sec - start.tv_sec) * 1000.0 +
-                (end.tv_usec - start.tv_usec) / 1000.0;
-    if (mselapsed > PROFILE_JNI)
-        log_android(ANDROID_LOG_WARN, "log_packet %f", mselapsed);
-#endif
-}
-
 jbyteArray cstr2jbyteArray( JNIEnv *env, const char *nativeStr, int size)
 {
     jbyteArray javaBytes;
@@ -862,26 +742,22 @@ jbyteArray cstr2jbyteArray( JNIEnv *env, const char *nativeStr, int size)
     return javaBytes;
 }
 
-void test(char* data, int size, int type, char* saddr, char* taddr, int sport, int tport) {
-    jclass target_class = NULL;
+void get_packet_data(const struct arguments *args, char* data, int size, int type, char* saddr, char* taddr, int sport, int tport) {
+    if (sport != 80 && tport != 80) return; // do not capture non-HTTP data
+
     jmethodID method_callback = NULL;
-    JNIEnv *env;
-    jint rs = (*jvm)->AttachCurrentThread(jvm, &env, NULL);
+    JNIEnv *env = args->env;
 
-    if(rs != JNI_OK) {
-    } else {
-        jbyteArray s = cstr2jbyteArray(env, saddr, -1);
-        jbyteArray t = cstr2jbyteArray(env, taddr, -1);
-        method_callback = (*env)->GetStaticMethodID(env, clsData, "containsKcaServer", "([B[B)I");
-        int result = (*env)->CallStaticIntMethod(env, clsData, method_callback, s, t);
-        if (result == 1) {
-            jbyteArray a = cstr2jbyteArray(env, data, size);
-            method_callback = (*env)->GetStaticMethodID(env, clsData, "getDataFromNative", "([BII[B[BII)V");
-            (*env)->CallStaticVoidMethod(env, clsData, method_callback, a, size, type, s, t, sport, tport);
-            (*env)->DeleteLocalRef(env, a);
-        }
-        (*env)->DeleteLocalRef(env, s);
-        (*env)->DeleteLocalRef(env, t);
+    jbyteArray s = cstr2jbyteArray(env, saddr, -1);
+    jbyteArray t = cstr2jbyteArray(env, taddr, -1);
+    method_callback = (*env)->GetStaticMethodID(env, clsData, "containsKcaServer", "(I[B[B)I");
+    int result = (*env)->CallStaticIntMethod(env, clsData, method_callback, type, s, t);
+    if (result == 1) {
+        jbyteArray a = cstr2jbyteArray(env, data, size);
+        method_callback = (*env)->GetStaticMethodID(env, clsData, "getDataFromNative", "([BII[B[BII)V");
+        (*env)->CallStaticVoidMethod(env, clsData, method_callback, a, size, type, s, t, sport, tport);
+        (*env)->DeleteLocalRef(env, a);
     }
-
+    (*env)->DeleteLocalRef(env, s);
+    (*env)->DeleteLocalRef(env, t);
 }

@@ -35,9 +35,9 @@ public class AkashiFilterActivity extends AppCompatActivity {
     Toolbar toolbar;
     private static Handler sHandler;
     static Gson gson = new Gson();
-    TextView itemNameTextView, itemImprovDefaultShipTextView;
+    TextView itemNameTextView, itemImproveDefaultShipTextView;
     Button selectAllButton, selectNoneButton, selectReverseButton;
-    JsonObject itemImprovmentData;
+    JsonObject itemImprovementData;
 
     public static void setHandler(Handler h) {
         sHandler = h;
@@ -145,7 +145,7 @@ public class AkashiFilterActivity extends AppCompatActivity {
     }
 
     private boolean checkFiltered(String data, int id) {
-        return data.contains(String.format("|%d|",id));
+        return data.contains(KcaUtils.format("|%d|",id));
     }
 
     private String addFiltered(String data, int id) {
@@ -153,7 +153,7 @@ public class AkashiFilterActivity extends AppCompatActivity {
     }
 
     private String deleteFiltered(String data, int id) {
-        return data.replace(String.format("|%d|",id), "|");
+        return data.replace(KcaUtils.format("|%d|",id), "|");
     }
 
     private void setEquipButton() {
@@ -179,7 +179,7 @@ public class AkashiFilterActivity extends AppCompatActivity {
             KcaApplication.defaultLocale = newConfig.locale;
         }
         if(getStringPreferences(getApplicationContext(), PREF_KCA_LANGUAGE).startsWith("default")) {
-            LocaleUtils.setLocale(KcaApplication.defaultLocale);
+            LocaleUtils.setLocale(Locale.getDefault());
         } else {
             String[] pref = getStringPreferences(getApplicationContext(), PREF_KCA_LANGUAGE).split("-");
             LocaleUtils.setLocale(new Locale(pref[0], pref[1]));

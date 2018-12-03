@@ -18,6 +18,11 @@
 */
 
 #include "netguard.h"
+#ifdef NDEBUG
+#define LOGD(...)
+#else
+#define LOGD(prio, tag, ...) __android_log_print(prio, tag, __VA_ARGS__)
+#endif
 
 extern int loglevel;
 
@@ -61,14 +66,15 @@ int sdk_int(JNIEnv *env) {
 }
 
 void log_android(int prio, const char *fmt, ...) {
+    /*
     if (prio >= loglevel) {
         char line[1024];
         va_list argptr;
         va_start(argptr, fmt);
         vsprintf(line, fmt, argptr);
-        __android_log_print(prio, TAG, line);
+        LOGD(prio, TAG, "%s", line);
         va_end(argptr);
-    }
+    }*/
 }
 
 uint8_t char2nible(const char c) {
@@ -148,7 +154,8 @@ int32_t get_local_port(const int sock) {
     if (getsockname(sock, (struct sockaddr *) &sin, &len) < 0) {
         log_android(ANDROID_LOG_ERROR, "getsockname error %d: %s", errno, strerror(errno));
         return -1;
-    } else
+    }
+    else
         return ntohs(sin.sin_port);
 }
 

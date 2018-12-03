@@ -27,20 +27,29 @@ import com.google.gson.JsonParser;
 
 import java.io.IOException;
 import java.lang.ref.WeakReference;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
 import static com.antest1.kcanotify.KcaApiData.loadTranslationData;
+import static com.antest1.kcanotify.KcaConstants.DB_KEY_MATERIALS;
+import static com.antest1.kcanotify.KcaConstants.DB_KEY_USEITEMS;
+import static com.antest1.kcanotify.KcaConstants.KCANOTIFY_DB_VERSION;
+import static com.antest1.kcanotify.KcaConstants.KCANOTIFY_RESOURCELOG_VERSION;
 import static com.antest1.kcanotify.KcaConstants.PREF_AKASHI_FILTERLIST;
 import static com.antest1.kcanotify.KcaConstants.PREF_AKASHI_STARLIST;
 import static com.antest1.kcanotify.KcaConstants.PREF_AKASHI_STAR_CHECKED;
 import static com.antest1.kcanotify.KcaConstants.PREF_KCA_LANGUAGE;
 import static com.antest1.kcanotify.KcaUtils.getBooleanPreferences;
+import static com.antest1.kcanotify.KcaUtils.getId;
+import static com.antest1.kcanotify.KcaUtils.getJapanCalendarInstance;
 import static com.antest1.kcanotify.KcaUtils.getStringPreferences;
 import static com.antest1.kcanotify.KcaUtils.setPreferences;
+import static com.antest1.kcanotify.KcaUtils.showDataLoadErrorToast;
 
 
 public class AkashiActivity extends AppCompatActivity {
@@ -51,9 +60,15 @@ public class AkashiActivity extends AppCompatActivity {
     ListView listview;
     int currentClicked = 0;
 
+    TextView dmat_count, smat_count;
+    TextView current_date;
+
     Button starButton, safeButton, filterButton;
     boolean isStarChecked, isSafeChecked = false;
     ArrayList<KcaAkashiListViewItem> listViewItemList;
+
+    KcaDBHelper dbHelper;
+    KcaResourceLogger resourceLogger;
     KcaAkashiListViewAdpater adapter;
     UpdateHandler handler;
 
@@ -74,7 +89,13 @@ public class AkashiActivity extends AppCompatActivity {
         getSupportActionBar().setTitle(getResources().getString(R.string.action_akashi));
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
 
-        Calendar calendar = Calendar.getInstance(Locale.JAPAN);
+        dbHelper = new KcaDBHelper(getApplicationContext(), null, KCANOTIFY_DB_VERSION);
+        resourceLogger = new KcaResourceLogger(getApplicationContext(), null, KCANOTIFY_RESOURCELOG_VERSION);
+        KcaApiData.setDBHelper(dbHelper);
+        setDefaultGameData();
+        loadTranslationData(getApplicationContext());
+
+        Calendar calendar = getJapanCalendarInstance();
         int dayOfWeek = calendar.get(Calendar.DAY_OF_WEEK) - 1; // 0(Sun) ~ 6(Sat)
         currentClicked = dayOfWeek;
         listViewItemList = new ArrayList<>();
@@ -84,12 +105,44 @@ public class AkashiActivity extends AppCompatActivity {
         isStarChecked = getBooleanPreferences(getApplicationContext(), PREF_AKASHI_STAR_CHECKED);
         setStarButton();
 
+        Date date = calendar.getTime();
+        SimpleDateFormat date_format = new SimpleDateFormat("yyyy/MM/dd", Locale.ENGLISH);
+        current_date = findViewById(R.id.current_date);
+        current_date.setText(KcaUtils.format("%s (%s)", date_format.format(date),
+                getStringWithLocale(getId("akashi_term_day_" + dayOfWeek, R.string.class))));
+
+        dmat_count = findViewById(R.id.count_dmat);
+        smat_count = findViewById(R.id.count_smat);
+        JsonArray material_data = dbHelper.getJsonArrayValue(DB_KEY_MATERIALS);
+        if (material_data != null) {
+            JsonElement dmat_value = material_data.get(6);
+            String dmat_str = dmat_value.isJsonPrimitive() ? dmat_value.getAsString() : dmat_value.getAsJsonObject().get("api_value").getAsString();
+            dmat_count.setText(String.valueOf(dmat_str));
+
+            JsonElement smat_value = material_data.get(7);
+            String smat_str = smat_value.isJsonPrimitive() ? smat_value.getAsString() : smat_value.getAsJsonObject().get("api_value").getAsString();
+            smat_count.setText(String.valueOf(smat_str));
+        }
+
+        /*
+        JsonArray useitem_data = dbHelper.getJsonArrayValue(DB_KEY_USEITEMS);
+        if (useitem_data != null) {
+            for (int i = 0; i < useitem_data.size(); i++) {
+                JsonObject item = useitem_data.get(i).getAsJsonObject();
+                int key = item.get("api_id").getAsInt();
+                if (key == 3) { // DEVMAT
+                } else if (key == 4) { // SCREW
+                    smat_count.setText(String.valueOf(item.get("api_count").getAsInt()));
+                }
+            }
+        }*/
+
         handler = new UpdateHandler(this);
         adapter = new KcaAkashiListViewAdpater();
         adapter.setHandler(handler);
         AkashiFilterActivity.setHandler(handler);
 
-        akashiDataLoadingFlag = getAkashiDataFromAssets();
+        akashiDataLoadingFlag = getAkashiDataFromStorage();
         if (akashiDataLoadingFlag != 1) {
             Toast.makeText(getApplicationContext(), "Error Loading Akashi Data", Toast.LENGTH_LONG).show();
         } else if (KcaApiData.getKcItemStatusById(2, "name") == null) {
@@ -103,20 +156,20 @@ public class AkashiActivity extends AppCompatActivity {
 
             for (int i = 0; i < 7; i++) {
                 final int week = i;
-                TextView tv = (TextView) findViewById(KcaUtils.getId(String.format("akashi_day_%d", i), R.id.class));
+                TextView tv = (TextView) findViewById(KcaUtils.getId(KcaUtils.format("akashi_day_%d", i), R.id.class));
                 if (week == currentClicked) {
                     tv.setBackgroundColor(ContextCompat.getColor(getApplicationContext(), R.color.colorAccent));
-                    tv.setTextColor(ContextCompat.getColor(getApplicationContext(), R.color.white));
+                    tv.setTextColor(ContextCompat.getColor(getApplicationContext(), R.color.colorBtnTextAccent));
                 }
                 tv.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
                         if (currentClicked != week) {
-                            TextView tv_prev = (TextView) findViewById(KcaUtils.getId(String.format("akashi_day_%d", currentClicked), R.id.class));
+                            TextView tv_prev = (TextView) findViewById(KcaUtils.getId(KcaUtils.format("akashi_day_%d", currentClicked), R.id.class));
                             tv_prev.setBackgroundColor(ContextCompat.getColor(getApplicationContext(), R.color.colorBtn));
-                            tv_prev.setTextColor(ContextCompat.getColor(getApplicationContext(), R.color.black));
+                            tv_prev.setTextColor(ContextCompat.getColor(getApplicationContext(), R.color.colorBtnText));
                             v.setBackgroundColor(ContextCompat.getColor(getApplicationContext(), R.color.colorAccent));
-                            ((TextView) v).setTextColor(ContextCompat.getColor(getApplicationContext(), R.color.white));
+                            ((TextView) v).setTextColor(ContextCompat.getColor(getApplicationContext(), R.color.colorBtnTextAccent));
                             currentClicked = week;
                             loadAkashiList(currentClicked, isSafeChecked);
                             resetListView(true);
@@ -158,7 +211,6 @@ public class AkashiActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
-        akashiData = null;
         super.onDestroy();
     }
 
@@ -173,43 +225,33 @@ public class AkashiActivity extends AppCompatActivity {
         }
     }
 
-    private int getAkashiDataFromAssets() {
-        try {
-            AssetManager.AssetInputStream ais;
-            JsonElement data;
-
-            ais = (AssetManager.AssetInputStream) getAssets().open("akashi_data.json");
-            data = new JsonParser().parse(new String(ByteStreams.toByteArray(ais)));
-            ais.close();
-            if (data.isJsonObject()) {
-                akashiData = data.getAsJsonObject();
-            } else {
-                return -1;
-            }
-
-            ais = (AssetManager.AssetInputStream) getAssets().open("akashi_day.json");
-            data = new JsonParser().parse(new String(ByteStreams.toByteArray(ais)));
-            ais.close();
-            if (data.isJsonObject()) {
-                akashiDay = data.getAsJsonObject();
-            } else {
-                return -1;
-            }
-
-            return 1;
-        } catch (IOException e) {
-            return 0;
+    private int getAkashiDataFromStorage() {
+        JsonObject data;
+        data = KcaUtils.getJsonObjectFromStorage(getApplicationContext(), "akashi_data.json", dbHelper);
+        if (data != null) {
+            akashiData = data;
+        } else {
+            return -1;
         }
+
+        data = KcaUtils.getJsonObjectFromStorage(getApplicationContext(), "akashi_day.json", dbHelper);
+        if (data != null) {
+            akashiDay = data;
+        } else {
+            return -1;
+        }
+        showDataLoadErrorToast(getApplicationContext(), getStringWithLocale(R.string.download_check_error));
+        return 1;
     }
 
     private void setStarButton() {
         if (isStarChecked) {
             starButton.setText("★");
-            starButton.setTextColor(ContextCompat.getColor(getApplicationContext(), R.color.white));
+            starButton.setTextColor(ContextCompat.getColor(getApplicationContext(), R.color.colorBtnTextAccent));
             starButton.setBackgroundColor(ContextCompat.getColor(getApplicationContext(), R.color.colorAccent));
         } else {
             starButton.setText("☆");
-            starButton.setTextColor(ContextCompat.getColor(getApplicationContext(), R.color.black));
+            starButton.setTextColor(ContextCompat.getColor(getApplicationContext(), R.color.colorBtnText));
             starButton.setBackgroundColor(ContextCompat.getColor(getApplicationContext(), R.color.colorBtn));
         }
         setPreferences(getApplicationContext(), PREF_AKASHI_STAR_CHECKED, isStarChecked);
@@ -218,11 +260,11 @@ public class AkashiActivity extends AppCompatActivity {
     private void setSafeButton() {
         if (isSafeChecked) {
             safeButton.setText(getStringWithLocale(R.string.aa_btn_safe_state1));
-            safeButton.setTextColor(ContextCompat.getColor(getApplicationContext(), R.color.white));
+            safeButton.setTextColor(ContextCompat.getColor(getApplicationContext(), R.color.colorBtnTextAccent));
             safeButton.setBackgroundColor(ContextCompat.getColor(getApplicationContext(), R.color.colorAccent));
         } else {
             safeButton.setText(getStringWithLocale(R.string.aa_btn_safe_state0));
-            safeButton.setTextColor(ContextCompat.getColor(getApplicationContext(), R.color.black));
+            safeButton.setTextColor(ContextCompat.getColor(getApplicationContext(), R.color.colorBtnText));
             safeButton.setBackgroundColor(ContextCompat.getColor(getApplicationContext(), R.color.colorBtn));
         }
     }
@@ -240,10 +282,10 @@ public class AkashiActivity extends AppCompatActivity {
 
         if (!filterlist.equals("|")) {
             filterButton.setBackgroundColor(ContextCompat.getColor(getApplicationContext(), R.color.colorAccent));
-            filterButton.setTextColor(ContextCompat.getColor(getApplicationContext(), R.color.white));
+            filterButton.setTextColor(ContextCompat.getColor(getApplicationContext(), R.color.colorBtnTextAccent));
         } else {
             filterButton.setBackgroundColor(ContextCompat.getColor(getApplicationContext(), R.color.colorBtn));
-            filterButton.setTextColor(ContextCompat.getColor(getApplicationContext(), R.color.black));
+            filterButton.setTextColor(ContextCompat.getColor(getApplicationContext(), R.color.colorBtnText));
         }
 
         listViewItemList.clear();
@@ -252,10 +294,12 @@ public class AkashiActivity extends AppCompatActivity {
         for (int i = 0; i < equipList.size(); i++) {
             int equipid = equipList.get(i).getAsInt();
             JsonObject kcItemData = KcaApiData.getKcItemStatusById(equipid, "type");
-            int type2 = kcItemData.getAsJsonArray("type").get(2).getAsInt();
-            int type3 = kcItemData.getAsJsonArray("type").get(3).getAsInt();
-            if (!checkFiltered(filterlist, type3)) {
-                keylist.add(type2 * TYPE_MUL + equipid);
+            if (kcItemData != null) {
+                int type2 = kcItemData.getAsJsonArray("type").get(2).getAsInt();
+                int type3 = kcItemData.getAsJsonArray("type").get(3).getAsInt();
+                if (!checkFiltered(filterlist, type3)) {
+                    keylist.add(type2 * TYPE_MUL + equipid);
+                }
             }
         }
         Collections.sort(keylist);
@@ -265,18 +309,19 @@ public class AkashiActivity extends AppCompatActivity {
             if (isStarChecked && !checkStarred(starlist, equipid)) continue;
             KcaAkashiListViewItem item = new KcaAkashiListViewItem();
             item.setEquipDataById(equipid);
-            item.setEquipImprovmentData(akashiData.getAsJsonObject(String.valueOf(equipid)));
+            Log.e("KCA", String.valueOf(equipid));
+            item.setEquipImprovementData(akashiData.getAsJsonObject(String.valueOf(equipid)));
             item.setEquipImprovementElement(day, checked);
             listViewItemList.add(item);
         }
     }
 
     private boolean checkStarred(String data, int id) {
-        return data.contains(String.format("|%d|", id));
+        return data.contains(KcaUtils.format("|%d|", id));
     }
 
     private boolean checkFiltered(String data, int id) {
-        return data.contains(String.format("|%d|", id));
+        return data.contains(KcaUtils.format("|%d|", id));
     }
 
     private static class UpdateHandler extends Handler {
@@ -300,6 +345,10 @@ public class AkashiActivity extends AppCompatActivity {
         resetListView(false);
     }
 
+    private int setDefaultGameData() {
+        return KcaUtils.setDefaultGameData(getApplicationContext(), dbHelper);
+    }
+
     @Override
     public void onConfigurationChanged(Configuration newConfig) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
@@ -310,12 +359,12 @@ public class AkashiActivity extends AppCompatActivity {
             KcaApplication.defaultLocale = newConfig.locale;
         }
         if(getStringPreferences(getApplicationContext(), PREF_KCA_LANGUAGE).startsWith("default")) {
-            LocaleUtils.setLocale(KcaApplication.defaultLocale);
+            LocaleUtils.setLocale(Locale.getDefault());
         } else {
             String[] pref = getStringPreferences(getApplicationContext(), PREF_KCA_LANGUAGE).split("-");
             LocaleUtils.setLocale(new Locale(pref[0], pref[1]));
         }
-        loadTranslationData(getAssets(), getApplicationContext());
+        loadTranslationData(getApplicationContext());
         super.onConfigurationChanged(newConfig);
     }
 }

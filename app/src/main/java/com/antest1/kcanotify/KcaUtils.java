@@ -1,7 +1,8 @@
 package com.antest1.kcanotify;
 
-import android.app.Application;
+import android.app.ActivityManager;
 import android.content.Context;
+import android.content.ContextWrapper;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
@@ -9,51 +10,105 @@ import android.content.pm.ResolveInfo;
 import android.content.res.AssetManager;
 import android.content.res.Configuration;
 import android.content.res.Resources;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import android.media.AudioAttributes;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.net.Uri;
 import android.os.Build;
+import android.os.VibrationEffect;
+import android.os.Vibrator;
+import android.provider.MediaStore;
+import android.support.annotation.NonNull;
+import android.support.v4.app.NotificationCompat;
+import android.support.v4.content.ContextCompat;
+import android.util.Base64;
 import android.util.DisplayMetrics;
 import android.util.Log;
+import android.util.TypedValue;
+import android.view.Gravity;
+import android.view.View;
 import android.view.WindowManager;
+import android.widget.ImageView;
 import android.widget.Toast;
 
 import com.google.common.io.ByteStreams;
+import com.google.common.primitives.Bytes;
+import com.google.gson.Gson;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.google.gson.stream.JsonReader;
-
+import com.google.gson.JsonSyntaxException;
 
 import org.apache.commons.httpclient.ChunkedInputStream;
-import org.apache.commons.httpclient.ChunkedOutputStream;
+import org.apache.commons.lang3.ArrayUtils;
 
 import java.io.BufferedOutputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.io.Reader;
 import java.io.StringWriter;
+import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Field;
+import java.net.URLEncoder;
+import java.security.InvalidKeyException;
+import java.security.Key;
+import java.security.KeyFactory;
+import java.security.NoSuchAlgorithmException;
+import java.security.interfaces.RSAPublicKey;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.spec.RSAPublicKeySpec;
+import java.security.spec.X509EncodedKeySpec;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.TimeZone;
+import java.util.concurrent.TimeUnit;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
-import static com.antest1.kcanotify.KcaApiData.kcShipTranslationData;
-import static com.antest1.kcanotify.KcaApiData.loadItemTranslationDataFromAssets;
-import static com.antest1.kcanotify.KcaApiData.loadQuestInfoDataFromAssets;
-import static com.antest1.kcanotify.KcaApiData.loadShipTranslationDataFromAssets;
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
+
+import okhttp3.OkHttpClient;
+import retrofit2.Retrofit;
+import retrofit2.converter.scalars.ScalarsConverterFactory;
+
+import static android.content.res.Configuration.ORIENTATION_LANDSCAPE;
+import static com.antest1.kcanotify.KcaConstants.DB_KEY_STARTDATA;
+import static com.antest1.kcanotify.KcaConstants.ERROR_TYPE_DATALOAD;
 import static com.antest1.kcanotify.KcaConstants.KC_PACKAGE_NAME;
+import static com.antest1.kcanotify.KcaConstants.PREF_DATALOAD_ERROR_FLAG;
+import static com.antest1.kcanotify.KcaConstants.PREF_DISABLE_CUSTOMTOAST;
+import static com.antest1.kcanotify.KcaConstants.PREF_KCA_DATA_VERSION;
 import static com.antest1.kcanotify.KcaConstants.PREF_KCA_LANGUAGE;
+import static com.antest1.kcanotify.KcaConstants.PREF_KCA_VERSION;
+import static com.antest1.kcanotify.KcaConstants.PREF_RES_USELOCAL;
+import static com.antest1.kcanotify.KcaConstants.PREF_UPDATE_SERVER;
+import static com.antest1.kcanotify.KcaFairySelectActivity.FAIRY_SPECIAL_FLAG;
+import static com.antest1.kcanotify.KcaFairySelectActivity.FAIRY_SPECIAL_PREFIX;
+
 
 public class KcaUtils {
     public static String getStringFromException(Exception ex) {
@@ -62,25 +117,34 @@ public class KcaUtils {
         return errors.toString().replaceAll("\n", " / ").replaceAll("\t", "");
     }
 
-    public static String joinStr(List<String> list, String delim) {
-        String resultStr = "";
-        int i;
-        for (i = 0; i < list.size() - 1; i++) {
-            resultStr = resultStr.concat(list.get(i));
-            resultStr = resultStr.concat(delim);
-        }
-        resultStr = resultStr.concat(list.get(i));
-        return resultStr;
+    public static String format(String format, Object... args) {
+        return String.format(Locale.ENGLISH, format, args);
     }
 
-    public static void writeCacheData(Context ctx, byte[] data, String filename) throws IOException {
-        FileOutputStream fos = ctx.openFileOutput(filename, Context.MODE_PRIVATE);
-        fos.write(data);
-        fos.close();
+    public static JsonElement parseJson(String v) {
+        return new JsonParser().parse(v);
+    }
+
+    public static String joinStr(List<String> list, String delim) {
+        String resultStr = "";
+        if (list.size() > 0) {
+            int i;
+            for (i = 0; i < list.size() - 1; i++) {
+                resultStr = resultStr.concat(list.get(i));
+                resultStr = resultStr.concat(delim);
+            }
+            resultStr = resultStr.concat(list.get(i));
+        }
+        return resultStr;
     }
 
     public static String getStringPreferences(Context ctx, String key) {
         SharedPreferences pref = ctx.getSharedPreferences("pref", Context.MODE_PRIVATE);
+        try {
+            return String.valueOf(pref.getInt(key, 0));
+        } catch (Exception e) {
+            // Nothing to do
+        }
         return pref.getString(key, "");
     }
 
@@ -98,28 +162,15 @@ public class KcaUtils {
         } else if (value instanceof Boolean) {
             editor.putBoolean(key, (Boolean) value);
         } else if (value instanceof Integer) {
-            editor.putInt(key, (Integer) value);
+            editor.putString(key, String.valueOf(value));
         } else {
             editor.putString(key, value.toString());
         }
         editor.commit();
     }
 
-    public static JsonObject readCacheData(Context ctx, String filename) {
-        try {
-            JsonObject data = new JsonObject();
-            JsonParser parser = new JsonParser();
-
-            FileInputStream fis = ctx.openFileInput(filename);
-            InputStreamReader fisr = new InputStreamReader(fis);
-            JsonElement jsonElement = parser.parse(fisr);
-            data = jsonElement.getAsJsonObject();
-            return data;
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-            //new retrieveApiStartData().execute("", "down", "");
-            return null;
-        }
+    public static String getUpdateServer(Context ctx) {
+        return getStringPreferences(ctx, PREF_UPDATE_SERVER);
     }
 
     public static byte[] gzipcompress(String value) throws IOException {
@@ -178,7 +229,7 @@ public class KcaUtils {
     public static String byteArrayToHex(byte[] a) {
         StringBuilder sb = new StringBuilder();
         for (final byte b : a)
-            sb.append(String.format("%02x ", b & 0xff));
+            sb.append(KcaUtils.format("%02x ", b & 0xff));
         return sb.toString();
     }
 
@@ -226,8 +277,8 @@ public class KcaUtils {
     public static Context getContextWithLocale(Context ac, Context bc) {
         Locale locale;
         String[] pref_locale = getStringPreferences(ac, PREF_KCA_LANGUAGE).split("-");
-        if (pref_locale[0].equals("default")) {
-            locale = KcaApplication.defaultLocale;
+        if (pref_locale[0].toLowerCase().equals("default") || pref_locale.length < 2) {
+            locale = Locale.getDefault();
         } else {
             locale = new Locale(pref_locale[0], pref_locale[1]);
         }
@@ -243,8 +294,61 @@ public class KcaUtils {
         }
     }
 
+
+
     public static String getStringWithLocale(Context ac, Context bc, int id) {
         return getContextWithLocale(ac, bc).getString(id);
+    }
+
+    public static JsonObject getJsonObjectCopy(JsonObject data) {
+        return new JsonParser().parse(data.toString()).getAsJsonObject();
+    }
+
+    public static int setDefaultGameData(Context context, KcaDBHelper helper) {
+        boolean valid_data = false;
+        String current_version = getStringPreferences(context, PREF_KCA_DATA_VERSION);
+        String default_version = context.getString(R.string.default_gamedata_version);
+
+        if (helper.getJsonObjectValue(DB_KEY_STARTDATA) != null && KcaUtils.compareVersion(current_version, default_version)) {
+            if (KcaApiData.isGameDataLoaded()) return 1;
+            JsonObject start_data = helper.getJsonObjectValue(DB_KEY_STARTDATA);
+            if (start_data.has("api_data") && start_data.get("api_data").isJsonObject()) {
+                KcaApiData.getKcGameData(start_data.getAsJsonObject("api_data"));
+                valid_data = true;
+            }
+        }
+
+        if (!valid_data) {
+            try {
+                AssetManager assetManager = context.getAssets();
+                AssetManager.AssetInputStream ais =
+                        (AssetManager.AssetInputStream) assetManager.open("api_start2");
+                byte[] bytes = KcaUtils.gzipdecompress(ByteStreams.toByteArray(ais));
+                helper.putValue(DB_KEY_STARTDATA, new String(bytes));
+                JsonElement data = new JsonParser().parse(new String(bytes));
+                JsonObject api_data = new Gson().fromJson(data, JsonObject.class).getAsJsonObject("api_data");
+                KcaApiData.getKcGameData(api_data);
+                setPreferences(context, PREF_KCA_VERSION, default_version);
+                setPreferences(context, PREF_KCA_DATA_VERSION, default_version);
+            } catch (Exception e) {
+                return 0;
+            }
+            return 1;
+        } else {
+            return 1;
+        }
+    }
+
+    public static Uri getContentUri(@NonNull Context context, @NonNull Uri uri) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            if (uri.toString().startsWith("file")) {
+                File file = new File(uri.getPath());
+                return MediaStore.Audio.Media.getContentUriForPath(file.getAbsolutePath());
+            } else {
+                return uri;
+            }
+        }
+        return uri;
     }
 
     public static void playNotificationSound(MediaPlayer mediaPlayer, Context context, Uri uri) {
@@ -253,13 +357,30 @@ public class KcaUtils {
                 mediaPlayer.stop();
                 mediaPlayer.reset();
             }
-            mediaPlayer.setDataSource(context, uri);
-            mediaPlayer.setAudioStreamType(AudioManager.STREAM_NOTIFICATION);
-            mediaPlayer.prepare();
-            mediaPlayer.start();
+            if (uri != null && !Uri.EMPTY.equals(uri)) {
+                mediaPlayer.setDataSource(context, uri);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    AudioAttributes attr = new AudioAttributes.Builder()
+                            .setLegacyStreamType(AudioManager.STREAM_NOTIFICATION)
+                            .build();
+                    mediaPlayer.setAudioAttributes(attr);
+                } else {
+                    mediaPlayer.setAudioStreamType(AudioManager.STREAM_NOTIFICATION);
+                }
+                mediaPlayer.prepare();
+                mediaPlayer.start();
+            }
         } catch (IllegalArgumentException | SecurityException | IllegalStateException | IOException e) {
             e.printStackTrace();
         }
+    }
+
+    public static int getNotificationId(int type, int n) {
+        return n + 1000 * type;
+    }
+
+    public static String getName(Context context, int resid) {
+        return context.getResources().getResourceEntryName(resid);
     }
 
     public static int getId(String resourceName, Class<?> c) {
@@ -282,14 +403,514 @@ public class KcaUtils {
 
     // True: latest, False: need to update
     public static boolean compareVersion(String version_current, String version_default) {
+        if (version_current != null && version_current.length() == 0) return false;
         if (version_current.equals(version_default)) return true;
-        String[] current_split = version_current.replace("r",".0.").split("\\.");
-        String[] default_split = version_default.replace("r",".0.").split("\\.");
+        String[] current_split = version_current.replace("r", ".0.").split("\\.");
+        String[] default_split = version_default.replace("r", ".0.").split("\\.");
         int min_length = Math.min(current_split.length, default_split.length);
         for (int i = 0; i < min_length; i++) {
-            if (Integer.parseInt(current_split[i]) > Integer.parseInt(default_split[i])) return true;
-            else if (Integer.parseInt(current_split[i]) < Integer.parseInt(default_split[i])) return false;
+            if (current_split[i].trim().length() > 0 && default_split[i].trim().length() > 0) {
+                if (Integer.parseInt(current_split[i]) > Integer.parseInt(default_split[i])) {
+                    return true;
+                } else if (Integer.parseInt(current_split[i]) < Integer.parseInt(default_split[i])) {
+                    return false;
+                }
+            }
         }
         return current_split.length > default_split.length;
+    }
+
+    public static boolean isServiceRunning(Context context, Class<?> serviceClass) {
+        ActivityManager manager = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
+        for (ActivityManager.RunningServiceInfo service : manager.getRunningServices(Integer.MAX_VALUE)) {
+            if (serviceClass.getName().equals(service.service.getClassName())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static int getWindowLayoutType() {
+        int windowLayoutType = -1;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            windowLayoutType = WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY;
+        } else {
+            windowLayoutType = WindowManager.LayoutParams.TYPE_PHONE;
+        }
+        return windowLayoutType;
+    }
+
+    public static NotificationCompat.Builder createBuilder(Context context, String channel) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            return new NotificationCompat.Builder(context, channel);
+        } else {
+            return new NotificationCompat.Builder(context);
+        }
+    }
+
+    public static String getTimeStr(int left_time, boolean is_min) {
+        int sec, min, hour;
+        sec = left_time;
+        min = sec / 60;
+        hour = min / 60;
+        sec = sec % 60;
+        min = min % 60;
+        if (is_min) return KcaUtils.format("%02d:%02d", hour * 60 + min, sec);
+        else return KcaUtils.format("%02d:%02d:%02d", hour, min, sec);
+    }
+
+    public static String getTimeStr(int left_time) {
+        return getTimeStr(left_time, false);
+    }
+
+    public static Calendar getJapanCalendarInstance() {
+        Calendar c = Calendar.getInstance(TimeZone.getTimeZone("Asia/Tokyo"), Locale.JAPAN);
+        c.setFirstDayOfWeek(Calendar.MONDAY);
+        return c;
+    }
+
+    public static Calendar getJapanCalendarInstance(long timestamp) {
+        Calendar c = Calendar.getInstance(TimeZone.getTimeZone("Asia/Tokyo"), Locale.JAPAN);
+        c.setFirstDayOfWeek(Calendar.MONDAY);
+        c.setTimeInMillis(timestamp);
+        return c;
+    }
+
+    public static SimpleDateFormat getJapanSimpleDataFormat(String format) {
+        SimpleDateFormat dateFormat = new SimpleDateFormat(format, Locale.US);
+        dateFormat.setTimeZone(TimeZone.getTimeZone("Asia/Tokyo"));
+        return dateFormat;
+    }
+
+    public static long getCurrentDateTimestamp (long current_time) {
+        SimpleDateFormat dateFormat = new SimpleDateFormat("MM-dd-yyyy", Locale.US);
+        String timetext = dateFormat.format(new Date(current_time));
+        long timestamp = 0;
+        try {
+            timestamp = dateFormat.parse(timetext).getTime();
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
+        return timestamp;
+    }
+
+    public static int getLastDay(int year, int month) {
+        int[] day31 = {1, 3, 5, 7, 8, 10, 12};
+        if (month == 2) {
+            if (year % 100 != 0 && year % 4 == 0) return 29;
+            else return 28;
+        } else {
+            return Arrays.binarySearch(day31, month) >= 0 ? 31 : 30;
+        }
+    }
+
+    public static void doVibrate(Vibrator v, int time) {
+        if (Build.VERSION.SDK_INT >= 26) {
+            v.vibrate(VibrationEffect.createOneShot(time, VibrationEffect.DEFAULT_AMPLITUDE));
+        } else {
+            v.vibrate(time);
+        }
+    }
+
+    public static void showCustomToast(Context a, Context b, KcaCustomToast toast, String body, int duration, int color) {
+        if (getBooleanPreferences(a, PREF_DISABLE_CUSTOMTOAST)) {
+            JsonObject data = new JsonObject();
+            data.addProperty("text", body);
+            data.addProperty("duration", duration);
+            data.addProperty("color", color);
+            Intent toastIntent = new Intent(b, KcaCustomToastService.class);
+            toastIntent.setAction(KcaCustomToastService.TOAST_SHOW_ACTION);
+            toastIntent.putExtra("data", data.toString());
+            a.startService(toastIntent);
+            //Toast.makeText(ctx, body, duration).show();
+        } else {
+            toast.showToast(body, duration, color);
+        }
+    }
+
+    public static String getOrientationPrefix(int value) {
+        if (value == Configuration.ORIENTATION_PORTRAIT) {
+            return "ori_v_";
+        } else {
+            return "ori_h_";
+        }
+    }
+
+    public static KcaDownloader getInfoDownloader(Context context){
+        OkHttpClient okHttpClient = new OkHttpClient.Builder()
+                .connectTimeout(30, TimeUnit.SECONDS)
+                .readTimeout(1, TimeUnit.MINUTES)
+                .build();
+
+        Retrofit retrofit = new Retrofit.Builder()
+                .baseUrl(KcaUtils.getUpdateServer(context))
+                .client(okHttpClient)
+                .addConverterFactory(ScalarsConverterFactory.create())
+                .build();
+        return retrofit.create(KcaDownloader.class);
+    }
+
+    public static KcaDownloader getResDownloader(Context context){
+        OkHttpClient okHttpClient = new OkHttpClient.Builder()
+                .connectTimeout(30, TimeUnit.SECONDS)
+                .readTimeout(1, TimeUnit.MINUTES)
+                .build();
+
+        Retrofit retrofit = new Retrofit.Builder()
+                .baseUrl("https://raw.githubusercontent.com/antest1/kcanotify-gamedata/master/files/")
+                .client(okHttpClient)
+                .addConverterFactory(ScalarsConverterFactory.create())
+                .build();
+        return retrofit.create(KcaDownloader.class);
+    }
+
+    public static boolean checkFairyImageInStorage(Context context, String name) {
+        ContextWrapper cw = new ContextWrapper(context);
+        File directory = cw.getDir("fairy", Context.MODE_PRIVATE);
+        File image = new File(directory, name);
+        return image.exists();
+    }
+
+    public static JsonObject getJsonObjectFromStorage(Context context, String name, KcaDBHelper helper) {
+        if (getBooleanPreferences(context, PREF_RES_USELOCAL)) {
+            return getJsonObjectFromAsset(context, name, helper);
+        } else {
+            ContextWrapper cw = new ContextWrapper(context);
+            File directory = cw.getDir("data", Context.MODE_PRIVATE);
+            File jsonFile = new File(directory, name);
+            JsonObject data = null;
+            try {
+                Reader reader = new FileReader(jsonFile);
+                data = new JsonParser().parse(reader).getAsJsonObject();
+            } catch (IOException | IllegalStateException | JsonSyntaxException e) {
+                e.printStackTrace();
+                setPreferences(context, PREF_DATALOAD_ERROR_FLAG, true);
+                if (helper != null) helper.recordErrorLog(ERROR_TYPE_DATALOAD, name, "getJsonObjectFromStorage", "0", getStringFromException(e));
+                data = getJsonObjectFromAsset(context, name, helper);
+            }
+            return data;
+        }
+    }
+
+    public static JsonObject getJsonObjectFromAsset(Context context, String name, KcaDBHelper helper) {
+        ContextWrapper cw = new ContextWrapper(context);
+        JsonObject data = null;
+        AssetManager am = cw.getAssets();
+        try {
+            AssetManager.AssetInputStream ais =
+                    (AssetManager.AssetInputStream) am.open(name);
+            byte[] bytes = ByteStreams.toByteArray(ais);
+            data = new JsonParser().parse(new String(bytes)).getAsJsonObject();
+        } catch (IOException e1) {
+            e1.printStackTrace();
+            if (helper != null) helper.recordErrorLog(ERROR_TYPE_DATALOAD, name, "getJsonObjectFromStorage", "1", getStringFromException(e1));
+        }
+        return data;
+    }
+
+    public static JsonArray getJsonArrayFromStorage(Context context, String name, KcaDBHelper helper) {
+
+        if (getBooleanPreferences(context, PREF_RES_USELOCAL)) {
+            return getJsonArrayFromAsset(context, name, helper);
+        } else {
+            ContextWrapper cw = new ContextWrapper(context);
+            File directory = cw.getDir("data", Context.MODE_PRIVATE);
+            File jsonFile = new File(directory, name);
+            JsonArray data = new JsonArray();
+            try {
+                Reader reader = new FileReader(jsonFile);
+                data = new JsonParser().parse(reader).getAsJsonArray();
+            } catch (FileNotFoundException | IllegalStateException | JsonSyntaxException e ) {
+                e.printStackTrace();
+                setPreferences(context, PREF_DATALOAD_ERROR_FLAG, true);
+                if (helper != null) helper.recordErrorLog(ERROR_TYPE_DATALOAD, name, "getJsonArrayFromStorage", "0", getStringFromException(e));
+                data = getJsonArrayFromAsset(context, name, helper);
+            }
+            return data;
+        }
+    }
+
+    public static JsonArray getJsonArrayFromAsset(Context context, String name, KcaDBHelper helper) {
+        ContextWrapper cw = new ContextWrapper(context);
+        JsonArray data = new JsonArray();
+        AssetManager am = cw.getAssets();
+        try {
+            AssetManager.AssetInputStream ais =
+                    (AssetManager.AssetInputStream) am.open(name);
+            byte[] bytes = ByteStreams.toByteArray(ais);
+            data = new JsonParser().parse(new String(bytes)).getAsJsonArray();
+        } catch (IOException e1) {
+            e1.printStackTrace();
+            if (helper != null) helper.recordErrorLog(ERROR_TYPE_DATALOAD, name, "getJsonArrayFromStorage", "1", getStringFromException(e1));
+        }
+        return data;
+    }
+
+    public static boolean checkFairyImageFileFromStorage(Context context, String name) {
+        ContextWrapper cw = new ContextWrapper(context);
+        File directory = cw.getDir("fairy", Context.MODE_PRIVATE);
+        File myImageFile = new File(directory, KcaUtils.format("%s", name));
+        Bitmap bitmap = null;
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inPreferredConfig = Bitmap.Config.ARGB_8888;
+        try {
+            bitmap = BitmapFactory.decodeStream(new FileInputStream(myImageFile), null, options);
+        } catch (FileNotFoundException e) {
+            // Log.e("KCA", getStringFromException(e));
+            return false;
+        }
+        if (bitmap == null) {
+            return false;
+        }
+        return true;
+    }
+
+    public static Bitmap getFairyImageFromStorage(Context context, String name, KcaDBHelper helper) {
+        ContextWrapper cw = new ContextWrapper(context);
+        File directory = cw.getDir("fairy", Context.MODE_PRIVATE);
+        File myImageFile = new File(directory, KcaUtils.format("%s.png", name));
+
+        Bitmap bitmap = null;
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inPreferredConfig = Bitmap.Config.ARGB_8888;
+
+        int fairy_id = Integer.parseInt(name.replace("noti_icon_", ""));
+        if (fairy_id == 0) {
+            bitmap = BitmapFactory.decodeResource(context.getResources(), R.mipmap.noti_icon_0);
+        } else if (FAIRY_SPECIAL_FLAG && fairy_id >= FAIRY_SPECIAL_PREFIX) {
+            bitmap = BitmapFactory.decodeResource(context.getResources(), getId(name, R.mipmap.class));
+        } else {
+            try {
+                bitmap = BitmapFactory.decodeStream(new FileInputStream(myImageFile), null, options);
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+                setPreferences(context, PREF_DATALOAD_ERROR_FLAG, true);
+                if (helper != null) helper.recordErrorLog(ERROR_TYPE_DATALOAD, name, "getFairyImageFromStorage", "0", getStringFromException(e));
+                bitmap = BitmapFactory.decodeResource(context.getResources(), R.mipmap.noti_icon_0);
+            }
+            if (bitmap == null) {
+                setPreferences(context, PREF_DATALOAD_ERROR_FLAG, true);
+                if (helper != null) helper.recordErrorLog(ERROR_TYPE_DATALOAD, name, "getFairyImageFromStorage", "0", "bitmap==null");
+                bitmap = BitmapFactory.decodeResource(context.getResources(), R.mipmap.noti_icon_0);
+            }
+        }
+        return bitmap;
+    }
+
+    public static void setFairyImageFromStorage(Context context, String name, ImageView view, int dp) {
+        DisplayMetrics metrics = context.getResources().getDisplayMetrics();
+        int fairy_id = Integer.parseInt(name.replace("noti_icon_", ""));
+        int px = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, dp, metrics);
+        ContextWrapper cw = new ContextWrapper(context);
+        File directory = cw.getDir("fairy", Context.MODE_PRIVATE);
+        File myImageFile = new File(directory, KcaUtils.format("%s.png", name));
+        if (myImageFile.exists()) {
+            if (px > 0) {
+                GlideApp.with(context).load(myImageFile.getPath())
+                        .dontAnimate().override(px, px).into(view);
+            } else {
+                GlideApp.with(context).load(myImageFile.getPath()).into(view);
+            }
+        } else if (FAIRY_SPECIAL_FLAG && fairy_id >= FAIRY_SPECIAL_PREFIX) {
+            view.setImageResource(getId(name, R.mipmap.class));
+        } else {
+            view.setImageResource(R.mipmap.noti_icon_0);
+        }
+    }
+
+    public static void showDataLoadErrorToast(Context ac, Context bc, String text) {
+        if (getBooleanPreferences(ac, PREF_DATALOAD_ERROR_FLAG)) {
+            KcaCustomToast customToast = new KcaCustomToast(ac);
+            showCustomToast(ac, bc, customToast, text, Toast.LENGTH_LONG, ContextCompat.getColor(ac, R.color.colorHeavyDmgStatePanel));
+        }
+    }
+
+    public static void showDataLoadErrorToast(Context context, String text) {
+        if (getBooleanPreferences(context, PREF_DATALOAD_ERROR_FLAG)) {
+            Toast.makeText(context, text, Toast.LENGTH_LONG).show();
+        }
+    }
+
+    public static boolean checkOnline(Context context) {
+        ConnectivityManager connectivityManager = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo netInfo = connectivityManager.getActiveNetworkInfo();
+        return (netInfo != null && netInfo.isConnected());
+    }
+
+    public static int getGravity(int status) {
+        int value;
+        switch (status) {
+            case 1:
+                value = Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM;
+                break;
+            case 0:
+                value = Gravity.CENTER;
+                break;
+            case -1:
+                value = Gravity.CENTER_HORIZONTAL | Gravity.TOP;
+                break;
+            default:
+                value = Gravity.CENTER;
+                break;
+        }
+        return value;
+    }
+
+    // Image Downscale Functions from Android Reference
+    // https://developer.android.com/topic/performance/graphics/load-bitmap.html
+
+    public static int calculateInSampleSize(
+            BitmapFactory.Options options, int reqWidth, int reqHeight) {
+        final int height = options.outHeight;
+        final int width = options.outWidth;
+        int inSampleSize = 1;
+
+        if (height > reqHeight || width > reqWidth) {
+            final int halfHeight = height / 2;
+            final int halfWidth = width / 2;
+            while ((halfHeight / inSampleSize) >= reqHeight
+                    && (halfWidth / inSampleSize) >= reqWidth) {
+                inSampleSize *= 2;
+            }
+        }
+        return inSampleSize;
+    }
+
+    public static Bitmap decodeSampledBitmapFromResource(Resources res, int resId,
+                                                         int reqWidth, int reqHeight) {
+
+        final BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inJustDecodeBounds = true;
+        BitmapFactory.decodeResource(res, resId, options);
+        options.inSampleSize = calculateInSampleSize(options, reqWidth, reqHeight);
+        options.inJustDecodeBounds = false;
+        return BitmapFactory.decodeResource(res, resId, options);
+    }
+
+    public static boolean validateResourceFiles(Context context, KcaDBHelper helper) {
+        int count = 0;
+        ContextWrapper cw = new ContextWrapper(context);
+        File directory = cw.getDir("data", Context.MODE_PRIVATE);
+        for (final File entry : directory.listFiles()) {
+            try {
+                Reader reader = new FileReader(entry);
+                new JsonParser().parse(reader);
+                count += 1;
+            } catch (FileNotFoundException | IllegalStateException | JsonSyntaxException e ) {
+                e.printStackTrace();
+                if (helper != null) helper.recordErrorLog(ERROR_TYPE_DATALOAD, entry.getName(), "validateResourceFiles", "2", getStringFromException(e));
+                setPreferences(context, PREF_DATALOAD_ERROR_FLAG, true);
+                return false;
+            }
+        }
+        return count > 0;
+    }
+
+    public static JsonObject getCurrentWeekData() {
+        JsonObject week_data = new JsonObject();
+        Calendar cal = getJapanCalendarInstance();
+        boolean is_passed = (cal.get(Calendar.DAY_OF_WEEK) == Calendar.MONDAY) && (cal.get(Calendar.HOUR_OF_DAY) < 5);
+        while (cal.get(Calendar.DAY_OF_WEEK) != Calendar.MONDAY) {
+            cal.add(Calendar.DAY_OF_WEEK, -1);
+        }
+        cal.set(Calendar.HOUR_OF_DAY, 5);
+        cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+        long start_timestamp = cal.getTimeInMillis();
+        if (is_passed) start_timestamp -= 604800000;
+        long end_timestamp = start_timestamp + 604800000;
+        week_data.addProperty("start", start_timestamp);
+        week_data.addProperty("end", end_timestamp);
+        return week_data;
+    }
+
+    // Fix width for specific device has notch design:
+    // currently LG G7 (LM-G710) now
+    public static void resizeFullWidthView(Context context, View v) {
+        String model = Build.MODEL;
+        if (v == null) return;
+        if (!model.contains("LM-G710")) return;
+        int orientation = context.getResources().getConfiguration().orientation;
+        if (orientation == ORIENTATION_LANDSCAPE) {
+            final float scale = context.getResources().getDisplayMetrics().density;
+            int padding_px_width = (int) (28 * scale + 0.5f);
+            v.setPadding(padding_px_width, 0, padding_px_width, 0);
+        }
+    }
+
+    public static KcaQSyncAPI getQuestSync(Context context){
+        OkHttpClient okHttpClient = new OkHttpClient.Builder()
+                .connectTimeout(30, TimeUnit.SECONDS)
+                .readTimeout(1, TimeUnit.MINUTES)
+                .build();
+
+        Retrofit retrofit = new Retrofit.Builder()
+                .baseUrl(context.getString(R.string.app_kcaqsync_link))
+                .client(okHttpClient)
+                .addConverterFactory(ScalarsConverterFactory.create())
+                .build();
+        return retrofit.create(KcaQSyncAPI.class);
+    }
+
+    public static byte[] addAll(final byte[] array1, byte[] array2) {
+        byte[] joinedArray = Arrays.copyOf(array1, array1.length + array2.length);
+        System.arraycopy(array2, 0, joinedArray, array1.length, array2.length);
+        return joinedArray;
+    }
+
+    public static Map<String, String> getKcaQSyncHeaderMap() {
+        Map<String, String> map = new HashMap<>();
+        map.put("Referer", "app:/KCA/");
+        map.put("Content-Type", "application/x-www-form-urlencoded");
+        map.put("User-Agent", KcaUtils.format("Kcanotify/%s ", BuildConfig.VERSION_NAME));
+        return map;
+    }
+
+    public static String getRSAEncodedString(Context context, String value) throws NoSuchAlgorithmException, InvalidKeySpecException, NoSuchPaddingException, InvalidKeyException, IOException, BadPaddingException, IllegalBlockSizeException {
+        /*
+        Example:
+        try {
+            JsonObject data = new JsonObject();
+            data.addProperty("userid", 20181234);
+            data.addProperty("data", "416D341GX141JI0318W");
+            String encoded = KcaUtils.getRSAEncodedString(getApplicationContext(), data.toString());
+            Log.e("KCA", encoded);
+            data.remove("data");
+            encoded = KcaUtils.getRSAEncodedString(getApplicationContext(), data.toString());
+            Log.e("KCA", data.toString());
+            Log.e("KCA", encoded);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        */
+
+        List<String> value_list = new ArrayList<>();
+        for (int i = 0; i < (int) Math.ceil(value.length() / 96.0); i++) {
+            value_list.add(value.substring(i*96, Math.min((i+1)*96, value.length()) ));
+        }
+
+        AssetManager am = context.getAssets();
+        AssetManager.AssetInputStream ais =
+                (AssetManager.AssetInputStream) am.open("kcaqsync_pubkey.txt");
+        byte[] bytes = ByteStreams.toByteArray(ais);
+        String publicKeyContent = new String(bytes)
+                .replaceAll("\\n", "")
+                .replace("-----BEGIN PUBLIC KEY-----", "")
+                .replace("-----END PUBLIC KEY-----", "").trim();
+        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+        X509EncodedKeySpec pubSpec = new X509EncodedKeySpec(Base64.decode(publicKeyContent, Base64.DEFAULT));
+        Key encryptionKey = keyFactory.generatePublic(pubSpec);
+        Cipher rsa = Cipher.getInstance("RSA/None/PKCS1Padding");
+        rsa.init(Cipher.ENCRYPT_MODE, encryptionKey);
+
+        byte[] data_all = {};
+        for (String item : value_list) {
+            byte[] item_byte = rsa.doFinal(item.getBytes("utf-8"));
+            data_all = addAll(data_all, item_byte);
+        }
+
+        String result = Base64.encodeToString(rsa.doFinal(value.getBytes("utf-8")), Base64.DEFAULT).replace("\n", "");
+        return result;
     }
 }
